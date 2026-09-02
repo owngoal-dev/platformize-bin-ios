@@ -34,6 +34,8 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
   *fails* if a manifest entry has no release, so create the release before editing the manifest.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`** (`ln -s AGENTS.md CLAUDE.md`), never a file.
   `make check` enforces it.
+- **The make file is `makefile`, lowercase** (GNU make looks for `GNUmakefile`, `makefile`,
+  `Makefile` in that order). Every OwnGoal repo uses the same spelling; keep it.
 - **Review for sensitive information before every upload or publish.** `Scripts/check-sensitive.sh`
   (in the template) scans tracked files, the staged package tree and the finished `.deb`s for
   credentials, private keys, home/scratch paths, device UDIDs, IP addresses and e-mail addresses.
@@ -117,11 +119,11 @@ mv Packaging/PROGRAM.entitlements Packaging/<program>.entitlements
 # CMake project:  mv Scripts/build-ios.cmake.sh Scripts/build-ios.sh; rm Scripts/build-ios.cargo.sh Configuration/upstream.cargo.env
 # Cargo project:  mv Scripts/build-ios.cargo.sh Scripts/build-ios.sh; mv Configuration/upstream.cargo.env Configuration/upstream.env; rm Scripts/build-ios.cmake.sh
 chmod +x Scripts/*.sh
-grep -rn 'fastfetch' Makefile Scripts Packaging Configuration .github docs manifest.json   # every hit is a rename or a rewrite
+grep -rn 'fastfetch' makefile Scripts Packaging Configuration .github docs manifest.json   # every hit is a rename or a rewrite
 ```
 
 Then edit, in this order: `Configuration/upstream.env` (repo, sha, PROGRAM), `version.txt`,
-the `wiki.qaq.<program>` default in `Makefile`, `package-deb.sh`, `install-device.sh`,
+the `wiki.qaq.<program>` default in `makefile`, `package-deb.sh`, `install-device.sh`,
 `release-notes.sh`; `Packaging/DEBIAN/control`; `Packaging/release-notes.md`; the
 `follow-upstream.sh` tag regex (`^X.Y.Z$` vs `^rust-vX.Y.Z$`); `build-ios.sh`'s configure
 flags and the payload verification paths; `install-device.sh`'s smoke commands; the workflow

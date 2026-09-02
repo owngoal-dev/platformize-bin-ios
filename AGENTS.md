@@ -10,7 +10,7 @@ build here.
   humans; when they disagree, fix `README.md`.
 - **`template/` mirrors the live packaging repos.** It is the generic part
   of [OwnGoalStudio/fastfetch](https://github.com/OwnGoalStudio/fastfetch)
-  (scripts, Makefile, packaging, workflows) with the Cargo variants from
+  (scripts, makefile, packaging, workflows) with the Cargo variants from
   [grok](https://github.com/OwnGoalStudio/grok). When a script changes in a
   live repo, port the change here in the same commit, and the other way
   round. Do not let the three repos and the template drift.
