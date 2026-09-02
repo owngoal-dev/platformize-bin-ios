@@ -19,7 +19,7 @@ what a command-line process can and cannot do on a device.
 | --- | --- |
 | `SKILL.md` | the skill: the packaging contract, a step-by-step workflow, and an iOS porting playbook (header shim, SDK traps, IOKit/Metal/MobileGestalt facts learned on real devices) |
 | `template/` | a ready-to-copy packaging repo: `makefile`, `scripts/` for CMake and Cargo projects, `packaging/`, GitHub workflows (release + daily upstream follow), Pages redirect, package manifest |
-| `template/scripts/check-sensitive.sh` | the pre-publish review: refuses to package or release anything carrying credentials, private keys, home or scratch paths, device identifiers, IP or e-mail addresses |
+| `template/scripts/rebase-patches.sh` | `make rebase-patches REF=<sha>`: re-targets `patches/` at a new upstream commit when the daily upstream follow stops applying, lists the rejects to fix by hand, then rewrites and re-verifies the patch set |
 | `AGENTS.md` (`CLAUDE.md` links to it) | notes for agents working on this repository |
 
 ## Install
@@ -43,9 +43,11 @@ owngoalpackages".
 - Sign with `ldid` and the three entitlements that make a CLI work on a
   jailbroken device; test by installing, never by copying a binary over.
 - `CLAUDE.md` is a symlink to `AGENTS.md`.
-- Review for sensitive information before every upload or publish;
-  `make check`, the packager and the Release workflow all run the check.
+- Review for sensitive information before every upload or publish by having
+  an agent read the diff, the payload and `strings` of the binary. No scanner.
 - Release first, then add to the APT manifest; its build fails otherwise.
+- Every repo follows upstream daily and packages only the newest stable
+  version; when a patch stops applying, `make rebase-patches REF=<sha>`.
 
 ## Using the template
 

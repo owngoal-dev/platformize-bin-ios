@@ -17,12 +17,11 @@ build here.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`**, here and in `template/`.
   Never replace it with a file.
 - **Review for sensitive information before anything is uploaded or
-  published.** Run `template/scripts/check-sensitive.sh .` from the root of
-  this repository before every push. It refuses credentials, private keys,
-  home and scratch paths, device identifiers, IP addresses and e-mail
-  addresses outside the public maintainer domain. Device facts recorded in
-  `SKILL.md` are generic (chip ids, IORegistry class names), never a serial,
-  UDID, hostname or address.
+  published.** A reading job, not a regex: before every push, have an
+  agent (a subagent is fine) read the diff for credentials, private keys,
+  home or scratch paths, device identifiers and addresses. Device facts
+  recorded in `SKILL.md` are generic (chip ids, IORegistry class names),
+  never a serial, UDID, hostname or address.
 - **Facts in the playbook come from a device or an SDK, not from memory.**
   Add a fact together with how it was observed (probe binary, `nm -m`,
   `.tbd` grep). Remove a fact when it stops being true.
@@ -35,7 +34,6 @@ README.md                    human summary and install instructions
 template/                    packaging repo scaffold (see SKILL.md "Template")
 template/scripts/build-ios.cmake.sh   CMake projects
 template/scripts/build-ios.cargo.sh   Cargo projects
-template/scripts/check-sensitive.sh   pre-publish review, wired into make check
 template/patches/example-*   reference patches worth copying
 ```
 
@@ -44,5 +42,4 @@ template/patches/example-*   reference patches worth copying
 ```sh
 bash -n template/scripts/*.sh
 test "$(readlink CLAUDE.md)" = AGENTS.md && test "$(readlink template/CLAUDE.md)" = AGENTS.md
-template/scripts/check-sensitive.sh .
 ```

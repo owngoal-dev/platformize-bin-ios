@@ -39,13 +39,26 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
 - **Directories are lowercase, single words**: `configuration/`, `packaging/`, `scripts/`,
   `patches/`, `docs/`. Only `AGENTS.md`, `README.md`, `LICENSE` and the DEBIAN control
   directory keep their conventional case. macOS hides case mistakes; CI on Linux does not.
-- **Review for sensitive information before every upload or publish.** `scripts/check-sensitive.sh`
-  (in the template) scans tracked files, the staged package tree and the finished `.deb`s for
-  credentials, private keys, home/scratch paths, device UDIDs, IP addresses and e-mail addresses.
-  It is wired into `make check`, `package-deb.sh` and the Release workflow; run it by hand on
-  anything else you are about to push (`scripts/check-sensitive.sh <dir>`). A deliberate public
-  value goes on its allowlist; never loosen a rule. Never paste a device hostname, serial, UDID
-  or LAN address into docs, notes, commit messages or release bodies.
+- **Review for sensitive information before every upload or publish, by reading.** There is
+  deliberately no scanner script. Before a push, a tag or a release, have an agent (spawn a
+  subagent) read the diff, the staged package tree and `strings` of the built binary for
+  credentials, private keys, home or scratch paths, device identifiers, hostnames and
+  addresses, and report. Nothing goes out until that read comes back clean. Never paste a
+  device hostname, serial, UDID or LAN address into docs, notes, commit messages or release
+  bodies. Cargo builds export `RUSTFLAGS=--remap-path-prefix=<src>=/src
+  --remap-path-prefix=<scratch>=/build` so panic locations do not carry the build machine's
+  directories; check upstream's `.cargo/config.toml` first, the variable replaces any
+  `[target.aarch64-apple-ios] rustflags`.
+- **Every repo follows upstream daily and packages only the newest stable version.**
+  `Follow upstream` runs at 00:00 UTC, pins the newest `X.Y.Z`, proves `patches/` apply,
+  commits, tags `vX.Y.Z` and dispatches `Release` on the tag
+  (`gh workflow run release.yml --ref vX.Y.Z`, with `actions: write`); a tag pushed with the
+  workflow's own token never fires a push-triggered workflow. OwnGoalPackages fetches releases
+  at 04:00 UTC. A failed `Follow upstream` run means a patch stopped applying: see
+  "When Follow upstream fails".
+- **Published packages come from the Release workflow only.** Local `make debs` must keep
+  working (it is how you prove a build and `make install` on a device), but nothing built on
+  a laptop is uploaded: push the tag and let CI build, sign, review and publish.
 
 ## Workflow
 
@@ -65,20 +78,43 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
    `otool -L` only `/usr/lib` + `/System/Library/Frameworks`, and `nm -m | grep 'weak external'`
    lists every symbol newer than the deployment target — each must be null-checked in source.
 7. **Device smoke test** if a device is attached: `make install` (runs `--version` and a real run).
-8. **Review before publishing**: `make check` (runs `scripts/check-sensitive.sh` on every
-   tracked file and verifies the `CLAUDE.md` symlink), then
-   `scripts/check-sensitive.sh build/Packages/*.deb` on the exact assets you are about to
-   upload. Read the diff once yourself for anything the regexes cannot know is private. Stop on
-   any hit; nothing goes out until it is clean.
+8. **Review before publishing**: `make check`, then spawn a subagent to read `git diff`,
+   the payload tree and `strings build/ios-arm64/payload/<program>` for anything private
+   (credentials, home or scratch paths, device identifiers, addresses) and report back. Stop
+   on any finding; nothing goes out until it is clean.
 9. **Publish**: commit; `gh repo create OwnGoalStudio/<program> --public --source . --push`;
    enable Pages from `main:/docs` (`gh api -X POST repos/OwnGoalStudio/<program>/pages
-   -f 'source[branch]=main' -f 'source[path]=/docs'`); `git tag vX.Y.Z && git push origin vX.Y.Z`;
-   `gh release create vX.Y.Z --notes-file <(scripts/release-notes.sh vX.Y.Z) build/Packages/*.deb
-   build/Packages/SHA256SUMS` (the Release workflow re-uploads with `--clobber`, so a local
-   release first is fine and removes the wait). Confirm `gh run list` shows Release green.
+   -f 'source[branch]=main' -f 'source[path]=/docs'`); `git tag vX.Y.Z && git push origin vX.Y.Z`.
+   The Release workflow builds that tag and creates the GitHub Release. **Every published
+   package comes out of the workflow**: never `gh release create` or upload a `.deb` built on
+   your machine; local `make debs` exists to prove the build and to `make install` on a device.
+   Watch `gh run watch` until Release is green; only then move on.
 10. **Add to OwnGoalPackages** `manifest.json` (`repository` + `architectures`), commit, push,
     confirm its "Build and Deploy APT Repository" run goes green.
 11. **Report**: what works, what is `nosupport`, whether the device test ran.
+
+## When Follow upstream fails
+
+Upstream moved and a patch no longer applies. The run's log names the patch and the new sha.
+Expect this often for fast-moving projects; it is a 10-minute job, not a re-port.
+
+1. `make rebase-patches REF=<new sha>` — checks the sha out into `build/rebase` and applies
+   `patches/` with fuzz. Offsets are fine. For each `REJECTS` line, read the `.rej`: almost
+   always a doc comment that upstream reflowed around code that still applies.
+2. Fix each reject by hand in `build/rebase` (edit the file, then delete the `.rej`). Diff the
+   original patch against the new upstream text; keep the same words in the new layout.
+3. `make rebase-patches REF=<new sha> WRITE=1` — rewrites every patch from `build/rebase` (one
+   patch per purpose, one file per patch owner, no `index` lines) and re-applies them from a
+   clean checkout to prove it.
+4. `scripts/follow-upstream.sh` moves the pin and version and runs `make source`; then
+   `make check`, and `make debs` if the build is affordable locally (Cargo: minutes; V8: hours,
+   let CI do it).
+5. Also look for a changed build contract: a version placeholder that became a committed
+   version (codex 0.152), a helper binary version bump, a new `cfg` split. Fix the script, not
+   the symptom, and record it in `AGENTS.md`.
+6. Commit as "Rebase patches onto X.Y.Z", push, tag `vX.Y.Z` yourself (a human-pushed tag fires
+   `Release` directly), and watch `gh run list` until Release is green. `Follow upstream` then
+   finds the tag and does nothing until the next upstream version.
 
 ## iOS porting playbook
 
@@ -117,7 +153,7 @@ fallback) so an `ios` id still resolves to the Apple asset.
 `template/` is the fastfetch repo minus its patches. Instantiate:
 
 ```sh
-cp -R ~/Desktop/platformize-bin-ios/template/ <repo>/ && cd <repo>
+cp -R ~/.claude/skills/platformize-bin-ios/template/ <repo>/ && cd <repo>   # or wherever this skill is checked out
 mv packaging/PROGRAM.entitlements packaging/<program>.entitlements
 # CMake project:  mv scripts/build-ios.cmake.sh scripts/build-ios.sh; rm scripts/build-ios.cargo.sh configuration/upstream.cargo.env
 # Cargo project:  mv scripts/build-ios.cargo.sh scripts/build-ios.sh; mv configuration/upstream.cargo.env configuration/upstream.env; rm scripts/build-ios.cmake.sh
