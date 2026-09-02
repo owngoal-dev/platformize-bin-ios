@@ -11,9 +11,9 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
 
 ## The contract (do not bend these)
 
-- **Packaging repo, not a fork.** No upstream source is committed. `Configuration/upstream.env`
+- **Packaging repo, not a fork.** No upstream source is committed. `configuration/upstream.env`
   pins a full commit sha; `patches/NNNN-*.patch` are applied to a pristine checkout by
-  `Scripts/prepare-source.sh`. Small, single-purpose patches, generated with `git diff`.
+  `scripts/prepare-source.sh`. Small, single-purpose patches, generated with `git diff`.
 - **One arm64 binary, two packages.** `iphoneos-arm64` = rootless (`/var/jb` prefix),
   `iphoneos-arm64e` = roothide (unprefixed tree, dpkg drops it into the randomized jbroot).
   The architecture field names the *layout*, never the CPU. Never build an arm64e slice.
@@ -21,7 +21,7 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
   own path (`<bootstrap>/usr/bin/<program>`), then probe `/var/jb`, then `/`. Prefix
   substitution (`@PREFIX@`) happens only in packaging (launcher scripts), never in code.
 - **No libvroot.** The binary talks to libSystem directly. Path derivation replaces vroot.
-- **Version lives in `Configuration/version.txt` only.** `X.Y.Z` = upstream's version;
+- **Version lives in `configuration/version.txt` only.** `X.Y.Z` = upstream's version;
   `X.Y.Z-N` = packaging respin. `prepare-source.sh` should refuse a mismatch with upstream.
 - **Sign with ldid + entitlements**: `platform-application`, `com.apple.private.security.no-sandbox`,
   `com.apple.private.security.container-required = false` (explicit false; absence is not the same).
@@ -36,23 +36,26 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
   `make check` enforces it.
 - **The make file is `makefile`, lowercase** (GNU make looks for `GNUmakefile`, `makefile`,
   `Makefile` in that order). Every OwnGoal repo uses the same spelling; keep it.
-- **Review for sensitive information before every upload or publish.** `Scripts/check-sensitive.sh`
+- **Directories are lowercase, single words**: `configuration/`, `packaging/`, `scripts/`,
+  `patches/`, `docs/`. Only `AGENTS.md`, `README.md`, `LICENSE` and the DEBIAN control
+  directory keep their conventional case. macOS hides case mistakes; CI on Linux does not.
+- **Review for sensitive information before every upload or publish.** `scripts/check-sensitive.sh`
   (in the template) scans tracked files, the staged package tree and the finished `.deb`s for
   credentials, private keys, home/scratch paths, device UDIDs, IP addresses and e-mail addresses.
   It is wired into `make check`, `package-deb.sh` and the Release workflow; run it by hand on
-  anything else you are about to push (`Scripts/check-sensitive.sh <dir>`). A deliberate public
+  anything else you are about to push (`scripts/check-sensitive.sh <dir>`). A deliberate public
   value goes on its allowlist; never loosen a rule. Never paste a device hostname, serial, UDID
   or LAN address into docs, notes, commit messages or release bodies.
 
 ## Workflow
 
-1. **Read the siblings.** `cat ../codex/AGENTS.md ../grok/AGENTS.md`; skim their `Scripts/`.
+1. **Read the siblings.** `cat ../codex/AGENTS.md ../grok/AGENTS.md`; skim their `scripts/`.
 2. **Probe-build upstream first, in scratch.** Clone the latest stable tag, then:
    - CMake: `cmake -S src -B probe -G Ninja -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64
      -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 -DCMAKE_OSX_SYSROOT=iphoneos` and `ninja -k 0` to collect
      *every* failing file at once. Isolate pkg-config: `PKG_CONFIG_LIBDIR=<empty dir>`.
    - Cargo: `cargo build --release --target aarch64-apple-ios` with `SDKROOT` and
-     `IPHONEOS_DEPLOYMENT_TARGET` exported (see `template/Scripts/build-ios.cargo.sh`).
+     `IPHONEOS_DEPLOYMENT_TARGET` exported (see `template/scripts/build-ios.cargo.sh`).
 3. **Triage each failure into one of three buckets** (see "iOS porting playbook").
 4. **Iterate in the scratch checkout** (it is a git repo): edit, rebuild, until it links. Then
    `git add -A && git diff --cached -- <paths> > patches/000N-*.patch`, grouped by purpose.
@@ -62,15 +65,15 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
    `otool -L` only `/usr/lib` + `/System/Library/Frameworks`, and `nm -m | grep 'weak external'`
    lists every symbol newer than the deployment target — each must be null-checked in source.
 7. **Device smoke test** if a device is attached: `make install` (runs `--version` and a real run).
-8. **Review before publishing**: `make check` (runs `Scripts/check-sensitive.sh` on every
+8. **Review before publishing**: `make check` (runs `scripts/check-sensitive.sh` on every
    tracked file and verifies the `CLAUDE.md` symlink), then
-   `Scripts/check-sensitive.sh build/Packages/*.deb` on the exact assets you are about to
+   `scripts/check-sensitive.sh build/Packages/*.deb` on the exact assets you are about to
    upload. Read the diff once yourself for anything the regexes cannot know is private. Stop on
    any hit; nothing goes out until it is clean.
 9. **Publish**: commit; `gh repo create OwnGoalStudio/<program> --public --source . --push`;
    enable Pages from `main:/docs` (`gh api -X POST repos/OwnGoalStudio/<program>/pages
    -f 'source[branch]=main' -f 'source[path]=/docs'`); `git tag vX.Y.Z && git push origin vX.Y.Z`;
-   `gh release create vX.Y.Z --notes-file <(Scripts/release-notes.sh vX.Y.Z) build/Packages/*.deb
+   `gh release create vX.Y.Z --notes-file <(scripts/release-notes.sh vX.Y.Z) build/Packages/*.deb
    build/Packages/SHA256SUMS` (the Release workflow re-uploads with `--clobber`, so a local
    release first is fine and removes the wait). Confirm `gh run list` shows Release green.
 10. **Add to OwnGoalPackages** `manifest.json` (`repository` + `architectures`), commit, push,
@@ -115,16 +118,16 @@ fallback) so an `ios` id still resolves to the Apple asset.
 
 ```sh
 cp -R ~/Desktop/platformize-bin-ios/template/ <repo>/ && cd <repo>
-mv Packaging/PROGRAM.entitlements Packaging/<program>.entitlements
-# CMake project:  mv Scripts/build-ios.cmake.sh Scripts/build-ios.sh; rm Scripts/build-ios.cargo.sh Configuration/upstream.cargo.env
-# Cargo project:  mv Scripts/build-ios.cargo.sh Scripts/build-ios.sh; mv Configuration/upstream.cargo.env Configuration/upstream.env; rm Scripts/build-ios.cmake.sh
-chmod +x Scripts/*.sh
-grep -rn 'fastfetch' makefile Scripts Packaging Configuration .github docs manifest.json   # every hit is a rename or a rewrite
+mv packaging/PROGRAM.entitlements packaging/<program>.entitlements
+# CMake project:  mv scripts/build-ios.cmake.sh scripts/build-ios.sh; rm scripts/build-ios.cargo.sh configuration/upstream.cargo.env
+# Cargo project:  mv scripts/build-ios.cargo.sh scripts/build-ios.sh; mv configuration/upstream.cargo.env configuration/upstream.env; rm scripts/build-ios.cmake.sh
+chmod +x scripts/*.sh
+grep -rn 'fastfetch' makefile scripts packaging configuration .github docs manifest.json   # every hit is a rename or a rewrite
 ```
 
-Then edit, in this order: `Configuration/upstream.env` (repo, sha, PROGRAM), `version.txt`,
+Then edit, in this order: `configuration/upstream.env` (repo, sha, PROGRAM), `version.txt`,
 the `wiki.qaq.<program>` default in `makefile`, `package-deb.sh`, `install-device.sh`,
-`release-notes.sh`; `Packaging/DEBIAN/control`; `Packaging/release-notes.md`; the
+`release-notes.sh`; `packaging/DEBIAN/control`; `packaging/release-notes.md`; the
 `follow-upstream.sh` tag regex (`^X.Y.Z$` vs `^rust-vX.Y.Z$`); `build-ios.sh`'s configure
 flags and the payload verification paths; `install-device.sh`'s smoke commands; the workflow
 tool-install step (`cmake ninja` vs `rust-toolchain`). Write `AGENTS.md`/`README.md` in the

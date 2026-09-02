@@ -6,13 +6,13 @@ it is — built for jailbroken iOS 15+ and installed as `PROGRAM`, for both
 
 This repository holds **no application source**. It fetches upstream at a
 pinned commit, applies `patches/`, cross-compiles for iOS, and packages.
-Everything runs through `Scripts/`, so CI and a local checkout execute the
+Everything runs through `scripts/`, so CI and a local checkout execute the
 same code.
 
 ## Hard rules
 
 - **Not a fork.** Never vendor upstream source here. Every change to it is a
-  patch in `patches/`, applied by `Scripts/prepare-source.sh` to a fresh
+  patch in `patches/`, applied by `scripts/prepare-source.sh` to a fresh
   checkout of `UPSTREAM_REF`. Keep patches small and single-purpose.
 - **`UPSTREAM_REF` is a full commit sha**, not a branch. Bump with
   `make bump-upstream REF=…`.
@@ -25,13 +25,13 @@ same code.
 - **Never hardcode a bootstrap path in patched source.** Derive the bootstrap
   from the executable's own path, then probe `/var/jb`, then `/`. Prefix
   substitution (`@PREFIX@`) belongs in packaging, not in code.
-- **Versions live in `Configuration/version.txt` only.** `X.Y.Z` tracks
+- **Versions live in `configuration/version.txt` only.** `X.Y.Z` tracks
   upstream's version; `X.Y.Z-N` is a packaging-only respin.
 - **Do not link libvroot.** The binary talks to libSystem directly.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`**, never a file of its own. One
   set of notes, two names; `make check` enforces it.
 - **Review for sensitive information before anything is uploaded or
-  published.** `Scripts/check-sensitive.sh` scans tracked files, the staged
+  published.** `scripts/check-sensitive.sh` scans tracked files, the staged
   package tree and the finished `.deb`s for credentials, private keys, home
   and scratch paths, device identifiers, IP addresses and e-mail addresses.
   `make check`, `package-deb.sh` and the Release workflow all run it and
@@ -47,17 +47,17 @@ that are intentionally unsupported on iOS.)
 ## Layout
 
 ```
-Configuration/upstream.env   pinned ref, program name, iOS floor
-Configuration/version.txt    package version
+configuration/upstream.env   pinned ref, program name, iOS floor
+configuration/version.txt    package version
 patches/NNNN-*.patch         applied in sorted order to a pristine checkout
-Packaging/DEBIAN/control     control template (@PLACEHOLDER@ substituted)
-Packaging/PROGRAM.entitlements  what the signed binary carries, and why
-Packaging/release-notes.md   GitHub Release body template
-Scripts/prepare-source.sh    fetch + patch (idempotent, stamped)
-Scripts/build-ios.sh         cross-compile, verify Mach-O, assemble payload
-Scripts/package-deb.sh       stage + ldid + dpkg-deb + verify
-Scripts/check-sensitive.sh   pre-publish review of files, payload and .debs
-Scripts/install-device.sh    install over SSH and smoke-test (dev only)
+packaging/DEBIAN/control     control template (@PLACEHOLDER@ substituted)
+packaging/PROGRAM.entitlements  what the signed binary carries, and why
+packaging/release-notes.md   GitHub Release body template
+scripts/prepare-source.sh    fetch + patch (idempotent, stamped)
+scripts/build-ios.sh         cross-compile, verify Mach-O, assemble payload
+scripts/package-deb.sh       stage + ldid + dpkg-deb + verify
+scripts/check-sensitive.sh   pre-publish review of files, payload and .debs
+scripts/install-device.sh    install over SSH and smoke-test (dev only)
 build/                       everything generated; not source
 ```
 
@@ -79,7 +79,7 @@ binary runs with its entitlements ignored (trustcache never saw it).
 A non-draft, non-prerelease tag `vX.Y.Z`; assets whose names end in
 `iphoneos-arm64.deb` / `iphoneos-arm64e.deb`; a `SHA256SUMS` of bare names.
 
-`Follow upstream` runs every Monday at 00:00 UTC: pin to the newest stable
+`Follow upstream` runs every day at 00:00 UTC: pin to the newest stable
 upstream release, `make source` to prove `patches/` still apply, then commit
 and tag `vX.Y.Z` as `bot <bot@owngoal.dev>`. `Release` builds that tag.
 OwnGoalPackages fetches it at 04:00 UTC.

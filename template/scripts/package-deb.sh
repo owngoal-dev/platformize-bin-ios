@@ -20,16 +20,16 @@ install_prefix="$5"
 
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-# shellcheck source=../Configuration/upstream.env
-source "$repository_root/Configuration/upstream.env"
+# shellcheck source=../configuration/upstream.env
+source "$repository_root/configuration/upstream.env"
 
 : "${PROGRAM:?}"
 : "${MIN_IOS:?}"
 : "${UPSTREAM_REF:?}"
 
 package_id="${PACKAGE_ID:-wiki.qaq.fastfetch}"
-control_template="$repository_root/Packaging/DEBIAN/control"
-entitlements="$repository_root/Packaging/${PROGRAM}.entitlements"
+control_template="$repository_root/packaging/DEBIAN/control"
+entitlements="$repository_root/packaging/${PROGRAM}.entitlements"
 
 for input in "$control_template" "$entitlements"; do
     [[ -f "$input" ]] || { echo "error: missing packaging input: $input" >&2; exit 66; }
@@ -112,7 +112,7 @@ if grep -q '@[A-Z_]*@' "$debian/control"; then
 fi
 
 # Nothing personal or secret leaves this machine inside a package.
-"$repository_root/Scripts/check-sensitive.sh" "$staging"
+"$repository_root/scripts/check-sensitive.sh" "$staging"
 
 dpkg-deb --root-owner-group -Zzstd -b "$staging" "$temporary_deb" >/dev/null
 

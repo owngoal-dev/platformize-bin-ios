@@ -18,8 +18,8 @@ what a command-line process can and cannot do on a device.
 | path | what it is |
 | --- | --- |
 | `SKILL.md` | the skill: the packaging contract, a step-by-step workflow, and an iOS porting playbook (header shim, SDK traps, IOKit/Metal/MobileGestalt facts learned on real devices) |
-| `template/` | a ready-to-copy packaging repo: `makefile`, `Scripts/` for CMake and Cargo projects, `Packaging/`, GitHub workflows (release + weekly upstream follow), Pages redirect, package manifest |
-| `template/Scripts/check-sensitive.sh` | the pre-publish review: refuses to package or release anything carrying credentials, private keys, home or scratch paths, device identifiers, IP or e-mail addresses |
+| `template/` | a ready-to-copy packaging repo: `makefile`, `scripts/` for CMake and Cargo projects, `packaging/`, GitHub workflows (release + daily upstream follow), Pages redirect, package manifest |
+| `template/scripts/check-sensitive.sh` | the pre-publish review: refuses to package or release anything carrying credentials, private keys, home or scratch paths, device identifiers, IP or e-mail addresses |
 | `AGENTS.md` (`CLAUDE.md` links to it) | notes for agents working on this repository |
 
 ## Install
@@ -51,11 +51,11 @@ owngoalpackages".
 
 ```sh
 cp -R template/ <repo>/ && cd <repo>
-mv Packaging/PROGRAM.entitlements Packaging/<program>.entitlements
-# CMake:  mv Scripts/build-ios.cmake.sh Scripts/build-ios.sh && rm Scripts/build-ios.cargo.sh Configuration/upstream.cargo.env
-# Cargo:  mv Scripts/build-ios.cargo.sh Scripts/build-ios.sh && mv Configuration/upstream.cargo.env Configuration/upstream.env && rm Scripts/build-ios.cmake.sh
-chmod +x Scripts/*.sh
-grep -rn fastfetch makefile Scripts Packaging Configuration .github docs manifest.json   # every hit is a rename
+mv packaging/PROGRAM.entitlements packaging/<program>.entitlements
+# CMake:  mv scripts/build-ios.cmake.sh scripts/build-ios.sh && rm scripts/build-ios.cargo.sh configuration/upstream.cargo.env
+# Cargo:  mv scripts/build-ios.cargo.sh scripts/build-ios.sh && mv configuration/upstream.cargo.env configuration/upstream.env && rm scripts/build-ios.cmake.sh
+chmod +x scripts/*.sh
+grep -rn fastfetch makefile scripts packaging configuration .github docs manifest.json   # every hit is a rename
 make check
 ```
 

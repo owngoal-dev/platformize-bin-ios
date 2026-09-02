@@ -17,11 +17,11 @@ work_dir="$1"
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 patch_dir="$repository_root/patches"
 
-# shellcheck source=../Configuration/upstream.env
-source "$repository_root/Configuration/upstream.env"
+# shellcheck source=../configuration/upstream.env
+source "$repository_root/configuration/upstream.env"
 
-: "${UPSTREAM_REPO:?Configuration/upstream.env must set UPSTREAM_REPO}"
-: "${UPSTREAM_REF:?Configuration/upstream.env must set UPSTREAM_REF}"
+: "${UPSTREAM_REPO:?configuration/upstream.env must set UPSTREAM_REPO}"
+: "${UPSTREAM_REF:?configuration/upstream.env must set UPSTREAM_REF}"
 
 [[ -d "$patch_dir" ]] || { echo "error: missing patches directory: $patch_dir" >&2; exit 66; }
 
@@ -30,7 +30,7 @@ patches=("$patch_dir"/*.patch)
 shopt -u nullglob
 ((${#patches[@]} > 0)) || { echo "error: patches/ holds no .patch files" >&2; exit 66; }
 
-version_file="$repository_root/Configuration/version.txt"
+version_file="$repository_root/configuration/version.txt"
 package_version="$(tr -d '[:space:]' <"$version_file")"
 upstream_version="${package_version%%-*}"
 [[ "$upstream_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
@@ -81,7 +81,7 @@ done
 # a tree whose `fastfetch --version` would disagree with the .deb.
 project_version="$(sed -n -E '/^project\(fastfetch/,/\)/s/^[[:space:]]*VERSION[[:space:]]+([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' "$work_dir/CMakeLists.txt" | head -n1)"
 [[ "$project_version" == "$upstream_version" ]] || {
-    echo "error: upstream CMakeLists.txt says version ${project_version:-unknown}, Configuration/version.txt says $upstream_version" >&2
+    echo "error: upstream CMakeLists.txt says version ${project_version:-unknown}, configuration/version.txt says $upstream_version" >&2
     echo "       run: make set-version VERSION=$project_version" >&2
     exit 65
 }

@@ -7,10 +7,10 @@
 # commits the pin and tags vX.Y.Z; release.yml turns that tag into packages.
 # OwnGoalPackages picks up the newest non-preview release on its next run.
 #
-#   Scripts/follow-upstream.sh           # rewrite Configuration/ if newer
-#   Scripts/follow-upstream.sh --check   # exit 0 if already current
-#   Scripts/follow-upstream.sh --dry-run # print the candidate, change nothing
-#   Scripts/follow-upstream.sh --print   # one line: version sha tag
+#   scripts/follow-upstream.sh           # rewrite configuration/ if newer
+#   scripts/follow-upstream.sh --check   # exit 0 if already current
+#   scripts/follow-upstream.sh --dry-run # print the candidate, change nothing
+#   scripts/follow-upstream.sh --print   # one line: version sha tag
 
 set -Eeuo pipefail
 
@@ -31,8 +31,8 @@ case "${1:-}" in
 esac
 
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
-# shellcheck source=../Configuration/upstream.env
-source "$repository_root/Configuration/upstream.env"
+# shellcheck source=../configuration/upstream.env
+source "$repository_root/configuration/upstream.env"
 
 : "${UPSTREAM_REPO:?}"
 : "${UPSTREAM_REF:?}"
@@ -43,7 +43,7 @@ command -v python3 >/dev/null || { echo "error: python3 is not installed" >&2; e
 upstream_slug="${UPSTREAM_REPO#https://github.com/}"
 upstream_slug="${upstream_slug%.git}"
 
-current_version="$(tr -d '[:space:]' <"$repository_root/Configuration/version.txt")"
+current_version="$(tr -d '[:space:]' <"$repository_root/configuration/version.txt")"
 current_upstream_version="${current_version%%-*}"
 
 read -r upstream_version upstream_tag <<EOF
@@ -120,7 +120,7 @@ if [[ "$mode" == "dry-run" ]]; then
     exit 0
 fi
 
-python3 - "$repository_root/Configuration/upstream.env" "$upstream_sha" <<'PY'
+python3 - "$repository_root/configuration/upstream.env" "$upstream_sha" <<'PY'
 from pathlib import Path
 import sys
 path = Path(sys.argv[1])
@@ -137,7 +137,7 @@ if not replaced:
     raise SystemExit(f"{path} has no UPSTREAM_REF=")
 path.write_text("".join(lines))
 PY
-printf '%s\n' "$upstream_version" >"$repository_root/Configuration/version.txt"
+printf '%s\n' "$upstream_version" >"$repository_root/configuration/version.txt"
 echo "pinned UPSTREAM_REF=$upstream_sha"
 echo "set version $upstream_version"
 
