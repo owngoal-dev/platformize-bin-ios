@@ -1,0 +1,19 @@
+Package: @PACKAGE_ID@
+Name: fastfetch
+Version: @VERSION@
+Architecture: @ARCHITECTURE@
+Description: fastfetch system information tool for jailbroken iOS
+ A neofetch-like tool for fetching system information and displaying it
+ prettily, cross-compiled for iOS and packaged for both roothide and
+ rootless bootstraps from one arm64 build. The architecture field says
+ which layout this package is, not which CPU it runs on. Upstream is
+ @UPSTREAM@.
+ .
+ Run `fastfetch` in a terminal on device. Config lives in
+ ~/.config/fastfetch/config.jsonc; presets are in /usr/share/fastfetch.
+Maintainer: OwnGoal Studio <not-gonna-reply@owngoal.dev>
+Author: Carter Li <https://github.com/fastfetch-cli/fastfetch>
+Section: Utilities
+Priority: optional
+Depends: firmware (>= @MIN_IOS@)
+Installed-Size: @INSTALLED_SIZE@

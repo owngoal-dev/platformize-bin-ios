@@ -1,0 +1,33 @@
+diff --git a/src/common/impl/FFPlatform_unix.c b/src/common/impl/FFPlatform_unix.c
+index 92f0e86..ad21700 100644
+--- a/src/common/impl/FFPlatform_unix.c
++++ b/src/common/impl/FFPlatform_unix.c
+@@ -12,6 +12,7 @@
+ #include <paths.h>
+ 
+ #ifdef __APPLE__
++    #include <TargetConditionals.h>
+     #include <mach-o/dyld.h>
+     #include <sys/sysctl.h>
+ #elif defined(__FreeBSD__) || defined(__NetBSD__)
+@@ -215,6 +216,20 @@ static void getConfigDirs(FFPlatform* platform) {
+     ffPlatformPathAddAbsolute(&platform->configDirs, FASTFETCH_TARGET_DIR_ETC "/xdg/");
+ #endif
+ 
++#if TARGET_OS_IPHONE
++    // Jailbroken iOS installs into a bootstrap (/var/jb, or RootHide's randomized
++    // jbroot) rather than /. The binary sits at <bootstrap>/usr/bin, so look for
++    // <bootstrap>/etc next to it instead of assuming one layout.
++    if (platform->exePath.length > 0) {
++        FF_STRBUF_AUTO_DESTROY path = ffStrbufCreateCopy(&platform->exePath);
++        ffStrbufSubstrBeforeLastC(&path, '/');
++        ffStrbufSubstrBeforeLastC(&path, '/');
++        ffStrbufSubstrBeforeLastC(&path, '/');
++        ffStrbufAppendS(&path, "/etc/");
++        ffPlatformPathAddAbsolute(&platform->configDirs, path.chars);
++    }
++#endif
++
+     ffPlatformPathAddAbsolute(&platform->configDirs, FASTFETCH_TARGET_DIR_ETC "/");
+     ffPlatformPathAddAbsolute(&platform->configDirs, FASTFETCH_TARGET_DIR_INSTALL_SYSCONF "/");
+ }

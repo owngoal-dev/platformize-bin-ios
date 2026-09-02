@@ -1,0 +1,172 @@
+# fastfetch — fastfetch packaged for jailbroken iOS.
+#
+# Every step is a script under Scripts/ so the GitHub Actions workflow and a
+# local checkout run the same code. This Makefile only wires them together and
+# owns the one thing that differs between the two packages: the layout.
+
+SHELL := /bin/bash
+ROOT_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+
+CONFIG_DIR := $(ROOT_DIR)/Configuration
+include $(CONFIG_DIR)/upstream.env
+
+VERSION_FILE    := $(CONFIG_DIR)/version.txt
+PACKAGE_VERSION := $(strip $(shell cat "$(VERSION_FILE)" 2>/dev/null))
+PACKAGE_ID      ?= wiki.qaq.fastfetch
+
+BUILD_DIR         := $(ROOT_DIR)/build
+SRC_DIR           := $(BUILD_DIR)/src
+SCRATCH_DIR       := $(BUILD_DIR)/ios-$(ARCH)
+PAYLOAD_PATH_FILE := $(BUILD_DIR)/payload-path.txt
+PKG_DIR           := $(BUILD_DIR)/Packages
+
+SOURCE_PREPARER  := $(ROOT_DIR)/Scripts/prepare-source.sh
+IOS_BUILDER      := $(ROOT_DIR)/Scripts/build-ios.sh
+DEB_PACKAGER     := $(ROOT_DIR)/Scripts/package-deb.sh
+VERSION_APPLIER  := $(ROOT_DIR)/Scripts/apply-version.sh
+DEVICE_INSTALLER := $(ROOT_DIR)/Scripts/install-device.sh
+
+# Which bootstrap layout the .deb is for. roothide is relocated into the jbroot
+# it picked this boot; a rootless bootstrap lives at a fixed /var/jb. One arm64
+# binary backs both — only the layout and the architecture label differ. The
+# binary never names a bootstrap path: it finds its presets, its etc and dpkg
+# relative to where it was installed (patches/0004, packages_ios.c).
+PACKAGE_FLAVOR ?= roothide
+ifeq ($(PACKAGE_FLAVOR),roothide)
+PACKAGE_PREFIX       :=
+PACKAGE_ARCHITECTURE := iphoneos-arm64e
+else ifeq ($(PACKAGE_FLAVOR),rootless)
+PACKAGE_PREFIX       := /var/jb
+PACKAGE_ARCHITECTURE := iphoneos-arm64
+else
+$(error PACKAGE_FLAVOR must be roothide or rootless, got '$(PACKAGE_FLAVOR)')
+endif
+
+DEB_OUTPUT ?= $(PKG_DIR)/$(PACKAGE_ID)_$(PACKAGE_VERSION)_$(PACKAGE_ARCHITECTURE).deb
+
+ifeq ($(PACKAGE_VERSION),)
+$(error $(VERSION_FILE) is missing or empty; run make set-version VERSION=x.y.z)
+endif
+
+.PHONY: all help print-version print-upstream print-deb-path set-version \
+	bump-upstream follow-upstream check source build package deb deb-roothide \
+	deb-rootless debs checksums install clean
+
+.NOTPARALLEL:
+
+all: debs
+
+help:
+	@echo "fastfetch $(PACKAGE_VERSION) — fastfetch for jailbroken iOS"
+	@echo "upstream: $(UPSTREAM_REPO) @ $(UPSTREAM_REF)"
+	@echo "target:   $(ARCH)-apple-ios$(MIN_IOS)"
+	@echo
+	@echo "  check          Validate the scripts, the config, and the patch set"
+	@echo "  source         Fetch upstream at the pinned ref and apply patches/"
+	@echo "  build          Cross-compile fastfetch for iOS"
+	@echo "  deb            Package one flavor (PACKAGE_FLAVOR=$(PACKAGE_FLAVOR))"
+	@echo "  deb-roothide   Package for roothide (unprefixed, iphoneos-arm64e)"
+	@echo "  deb-rootless   Package for rootless (/var/jb, iphoneos-arm64)"
+	@echo "  debs           Both packages plus SHA256SUMS — what CI releases"
+	@echo "  install        Install onto a device over SSH and smoke-test it"
+	@echo "  clean          Remove build/"
+	@echo
+	@echo "  make set-version VERSION=1.2.3   Set the package version"
+	@echo "  make bump-upstream REF=<sha>     Repin upstream and rebuild"
+	@echo "  make follow-upstream             Pin to newest stable X.Y.Z"
+
+print-version:
+	@echo "$(PACKAGE_VERSION)"
+
+print-upstream:
+	@echo "$(UPSTREAM_REF)"
+
+print-deb-path:
+	@echo "$(DEB_OUTPUT)"
+
+set-version:
+	@test -n "$(VERSION)" || { echo "usage: make set-version VERSION=1.2.3" >&2; exit 64; }
+	@"$(VERSION_APPLIER)" "$(VERSION)"
+
+check:
+	@echo "==> shell syntax"
+	@for script in "$(ROOT_DIR)"/Scripts/*.sh; do bash -n "$$script" || exit 1; done
+	@if command -v shellcheck >/dev/null; then \
+		shellcheck --severity=warning "$(ROOT_DIR)"/Scripts/*.sh; \
+	else \
+		echo "    (shellcheck not installed; syntax check only)"; \
+	fi
+	@echo "==> config"
+	@[[ "$(PACKAGE_VERSION)" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$$ ]] || \
+		{ echo "error: version '$(PACKAGE_VERSION)' must look like 1.2.3 or 1.2.3-2" >&2; exit 65; }
+	@[[ "$(MIN_IOS)" =~ ^[0-9]+\.[0-9]+$$ ]] || \
+		{ echo "error: MIN_IOS '$(MIN_IOS)' must look like 15.0" >&2; exit 65; }
+	@[[ "$(UPSTREAM_REF)" =~ ^[0-9a-f]{40}$$ ]] || \
+		echo "    warning: UPSTREAM_REF is not a full commit sha; builds are not reproducible"
+	@echo "==> patch set"
+	@ls "$(ROOT_DIR)"/patches/*.patch >/dev/null
+	@for patch in "$(ROOT_DIR)"/patches/*.patch; do \
+		test -s "$$patch" || { echo "error: $$patch is empty" >&2; exit 65; }; \
+	done
+	@echo "==> packaging inputs"
+	@for input in Packaging/DEBIAN/control Packaging/fastfetch.entitlements \
+		Packaging/release-notes.md; do \
+		test -f "$(ROOT_DIR)/$$input" || { echo "error: missing $$input" >&2; exit 66; }; \
+	done
+	@plutil -lint "$(ROOT_DIR)/Packaging/fastfetch.entitlements"
+	@"$(ROOT_DIR)/Scripts/release-notes.sh" "v$(PACKAGE_VERSION)" >/dev/null
+	@test -L "$(ROOT_DIR)/CLAUDE.md" && [[ "$$(readlink "$(ROOT_DIR)/CLAUDE.md")" == AGENTS.md ]] || \
+		{ echo "error: CLAUDE.md must be a symlink to AGENTS.md" >&2; exit 65; }
+	@echo "==> sensitive information"
+	@"$(ROOT_DIR)/Scripts/check-sensitive.sh"
+	@echo "ok"
+
+source:
+	@"$(SOURCE_PREPARER)" "$(SRC_DIR)"
+
+build: source
+	@mkdir -p "$(BUILD_DIR)"
+	@"$(IOS_BUILDER)" "$(SRC_DIR)" "$(SCRATCH_DIR)" >"$(PAYLOAD_PATH_FILE)"
+
+package:
+	@mkdir -p "$(PKG_DIR)"
+	@PACKAGE_ID="$(PACKAGE_ID)" "$(DEB_PACKAGER)" \
+		"$$(cat "$(PAYLOAD_PATH_FILE)")" \
+		"$(DEB_OUTPUT)" \
+		"$(PACKAGE_VERSION)" \
+		"$(PACKAGE_ARCHITECTURE)" \
+		"$(PACKAGE_PREFIX)"
+
+deb: build package
+
+deb-roothide:
+	@$(MAKE) --no-print-directory PACKAGE_FLAVOR=roothide deb
+
+deb-rootless:
+	@$(MAKE) --no-print-directory PACKAGE_FLAVOR=rootless deb
+
+debs: build
+	@$(MAKE) --no-print-directory PACKAGE_FLAVOR=roothide package
+	@$(MAKE) --no-print-directory PACKAGE_FLAVOR=rootless package
+	@$(MAKE) --no-print-directory checksums
+
+checksums:
+	@cd "$(PKG_DIR)" && shasum -a 256 \
+		"$(PACKAGE_ID)_$(PACKAGE_VERSION)_iphoneos-arm64.deb" \
+		"$(PACKAGE_ID)_$(PACKAGE_VERSION)_iphoneos-arm64e.deb" \
+		| tee SHA256SUMS
+
+install: debs
+	@"$(DEVICE_INSTALLER)" "$(PKG_DIR)"
+
+bump-upstream:
+	@test -n "$(REF)" || { echo "usage: make bump-upstream REF=<sha>" >&2; exit 64; }
+	@sed -i '' -e "s|^UPSTREAM_REF=.*|UPSTREAM_REF=$(REF)|" "$(CONFIG_DIR)/upstream.env"
+	@echo "repinned upstream to $(REF)"
+	@$(MAKE) --no-print-directory build
+
+follow-upstream:
+	@"$(ROOT_DIR)/Scripts/follow-upstream.sh"
+
+clean:
+	rm -rf "$(BUILD_DIR)"

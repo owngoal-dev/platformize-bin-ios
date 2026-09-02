@@ -1,0 +1,82 @@
+# Once a week, pin to the newest stable fastfetch-cli/fastfetch X.Y.Z release.
+# If the pin moves and patches/ still apply, commit and tag vX.Y.Z.
+# release.yml builds that tag; OwnGoalPackages picks it up at 04:00 UTC.
+
+name: Follow upstream
+
+on:
+  schedule:
+    # Monday 00:00 UTC, ahead of OwnGoalPackages' 04:00 UTC fetch.
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: follow-upstream
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out packaging repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Follow fastfetch-cli/fastfetch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          chmod +x Scripts/follow-upstream.sh
+          read -r new_version new_ref new_tag <<<"$(./Scripts/follow-upstream.sh --print)"
+          current_ref="$(make --no-print-directory print-upstream)"
+          current_version="$(make --no-print-directory print-version)"
+          current_upstream_version="${current_version%%-*}"
+          echo "current $current_version @ $current_ref"
+          echo "latest  $new_version ($new_tag) @ $new_ref"
+          if python3 - "$new_version" "$current_upstream_version" <<'PY'
+          import sys
+          candidate = tuple(map(int, sys.argv[1].split(".")))
+          current = tuple(map(int, sys.argv[2].split(".")))
+          raise SystemExit(candidate > current)
+          PY
+          then
+            echo "no newer stable version than $current_upstream_version"
+            echo "changed=false" >>"$GITHUB_ENV"
+            exit 0
+          fi
+          if git rev-parse "refs/tags/v${new_version}" >/dev/null 2>&1; then
+            echo "tag v${new_version} already exists; not retagging"
+            echo "changed=false" >>"$GITHUB_ENV"
+            exit 0
+          fi
+          ./Scripts/follow-upstream.sh
+          {
+            echo "changed=true"
+            echo "new_version=${new_version}"
+            echo "new_ref=${new_ref}"
+          } >>"$GITHUB_ENV"
+
+      - name: Commit pin and tag
+        if: env.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "bot"
+          git config user.email "bot@owngoal.dev"
+          git add Configuration/upstream.env Configuration/version.txt
+          git commit -m "Bump upstream to ${new_version}
+
+          fastfetch-cli/fastfetch ${new_ref}
+          "
+          git tag "v${new_version}"
+          git push origin HEAD:main
+          git push origin "v${new_version}"
