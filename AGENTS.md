@@ -9,9 +9,9 @@ build here.
 - **`SKILL.md` is the source of truth.** `README.md` summarises it for
   humans; when they disagree, fix `README.md`.
 - **`template/` mirrors the live packaging repos.** It is the generic part
-  of [OwnGoalStudio/fastfetch](https://github.com/OwnGoalStudio/fastfetch)
+  of [owngoal-dev/fastfetch](https://github.com/owngoal-dev/fastfetch)
   (scripts, makefile, packaging, workflows) with the Cargo variants from
-  [grok](https://github.com/OwnGoalStudio/grok). When a script changes in a
+  [grok](https://github.com/owngoal-dev/grok). When a script changes in a
   live repo, port the change here in the same commit, and the other way
   round. Do not let the three repos and the template drift.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`**, here and in `template/`.

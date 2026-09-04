@@ -4,12 +4,12 @@ A [Claude Code](https://claude.com/claude-code) skill that ports an upstream
 command-line tool to **jailbroken iOS** and ships it the way OwnGoal Studio
 does: one arm64 build, packaged for both **roothide** and **rootless**
 bootstraps, released from GitHub Actions, and served by the
-[OwnGoal Studio APT repository](https://github.com/OwnGoalStudio/OwnGoalPackages).
+[OwnGoal Studio APT repository](https://github.com/owngoal-dev/OwnGoalPackages).
 
 It is the distilled procedure behind
-[codex](https://github.com/OwnGoalStudio/codex),
-[grok](https://github.com/OwnGoalStudio/grok) and
-[fastfetch](https://github.com/OwnGoalStudio/fastfetch): what is fixed by
+[codex](https://github.com/owngoal-dev/codex),
+[grok](https://github.com/owngoal-dev/grok) and
+[fastfetch](https://github.com/owngoal-dev/fastfetch): what is fixed by
 contract, what breaks when you cross-compile against the iPhoneOS SDK, and
 what a command-line process can and cannot do on a device.
 
@@ -25,7 +25,7 @@ what a command-line process can and cannot do on a device.
 ## Install
 
 ```sh
-git clone https://github.com/OwnGoalStudio/platformize-bin-ios ~/.claude/skills/platformize-bin-ios
+git clone https://github.com/owngoal-dev/platformize-bin-ios ~/.claude/skills/platformize-bin-ios
 ```
 
 Then ask Claude Code to "build X for jailbroken iOS" or "package X like

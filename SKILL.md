@@ -6,7 +6,7 @@ description: Port an upstream command-line tool (C/CMake, Rust/Cargo, …) to ja
 # platformize-bin-ios
 
 Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the way
-`OwnGoalStudio/{codex,grok,fastfetch}` do it. Reference implementations:
+`owngoal-dev/{codex,grok,fastfetch}` do it. Reference implementations:
 `../codex` and `../grok` (Rust), `../fastfetch` (C/CMake). Read one before starting.
 
 ## The contract (do not bend these)
@@ -82,8 +82,8 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
    the payload tree and `strings build/ios-arm64/payload/<program>` for anything private
    (credentials, home or scratch paths, device identifiers, addresses) and report back. Stop
    on any finding; nothing goes out until it is clean.
-9. **Publish**: commit; `gh repo create OwnGoalStudio/<program> --public --source . --push`;
-   enable Pages from `main:/docs` (`gh api -X POST repos/OwnGoalStudio/<program>/pages
+9. **Publish**: commit; `gh repo create owngoal-dev/<program> --public --source . --push`;
+   enable Pages from `main:/docs` (`gh api -X POST repos/owngoal-dev/<program>/pages
    -f 'source[branch]=main' -f 'source[path]=/docs'`); `git tag vX.Y.Z && git push origin vX.Y.Z`.
    The Release workflow builds that tag and creates the GitHub Release. **Every published
    package comes out of the workflow**: never `gh release create` or upload a `.deb` built on
