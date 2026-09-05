@@ -35,12 +35,12 @@ owngoalpackages".
 ## The contract in one screen
 
 - A packaging repo, never a fork: pinned upstream sha + `patches/`.
-- One arm64 binary; `iphoneos-arm64` is the rootless layout (`/var/jb`),
+- One arm64 CPU target; `iphoneos-arm64` is the rootless layout (`/var/jb`),
   `iphoneos-arm64e` is roothide (unprefixed). The architecture names the
   layout, not the CPU.
 - No bootstrap path hardcoded in source; derive it from the executable's own
-  path. No libvroot.
-- Sign with `ldid` and the three entitlements that make a CLI work on a
+  path, or use official vroot for a consistent bootstrap filesystem view.
+- Sign with `ldid` and the platform, container and storage entitlements needed on a
   jailbroken device; test by installing, never by copying a binary over.
 - `CLAUDE.md` is a symlink to `AGENTS.md`.
 - Review for sensitive information before every upload or publish by having
@@ -66,3 +66,9 @@ make check
 ## License
 
 MIT.
+
+RootHide ports first evaluate the official pinned `libroothide` tooling. Bootstrap
+utilities such as fish and coreutils use `symredirect` before signing; native
+applications may retain an explicit physical-path boundary. Rootless packages
+must not acquire a RootHide-only vroot dependency. See `SKILL.md` for the full
+contract and `scripts/audit-binpack.py` for local archive checks.

@@ -27,7 +27,10 @@ same code.
   substitution (`@PREFIX@`) belongs in packaging, not in code.
 - **Versions live in `configuration/version.txt` only.** `X.Y.Z` tracks
   upstream's version; `X.Y.Z-N` is a packaging-only respin.
-- **Do not link libvroot.** The binary talks to libSystem directly.
+- **Evaluate official libvroot first for bootstrap-style ports.** Use it only in
+  the RootHide package when all path consumers share that view. Native or mixed
+  runtimes may retain physical paths with a documented reason; rootless does not
+  load the RootHide runtime.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`**, never a file of its own. One
   set of notes, two names; `make check` enforces it.
 - **Review for sensitive information before anything is uploaded or
@@ -95,3 +98,21 @@ tag (`gh workflow run release.yml --ref vX.Y.Z`): a tag pushed with the
 workflow's own token never fires a push-triggered workflow, and
 `workflow_dispatch` is the documented exception. OwnGoalPackages fetches the
 release at 04:00 UTC.
+
+## RootHide signing and launcher checks
+
+RootHide's official Developer README requires both
+`com.apple.private.security.storage.AppBundles` and
+`com.apple.private.security.storage.AppDataContainers`, in addition to the
+platform and no-sandbox entitlements. Keep these in the executable signature
+and verify the extracted signature after packaging; a correct package layout
+alone does not establish access to RootHide's app-container installation path.
+Source: https://github.com/roothide/Developer/blob/main/README.md
+
+For payloads that do not use vroot, the launcher exports physical bootstrap
+PATH, SHELL and default CA/browser paths. Preserve explicit CA/browser settings
+and already physical or custom SHELL paths. Host launcher tests simulate the
+path boundary and verify argv/exit status; they do not prove that iOS loads the
+binary. Test the installed package from both zsh and fish on a RootHide device.
+Do not add vroot to a payload while retaining a launcher that exports physical
+paths: the filesystem view must remain consistent across the boundary.

@@ -14,17 +14,28 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
 - **Packaging repo, not a fork.** No upstream source is committed. `configuration/upstream.env`
   pins a full commit sha; `patches/NNNN-*.patch` are applied to a pristine checkout by
   `scripts/prepare-source.sh`. Small, single-purpose patches, generated with `git diff`.
-- **One arm64 binary, two packages.** `iphoneos-arm64` = rootless (`/var/jb` prefix),
+- **One arm64 CPU target, two package layouts.** `iphoneos-arm64` = rootless (`/var/jb` prefix),
   `iphoneos-arm64e` = roothide (unprefixed tree, dpkg drops it into the randomized jbroot).
   The architecture field names the *layout*, never the CPU. Never build an arm64e slice.
 - **No bootstrap path hardcoded in patched source.** Derive the bootstrap from the executable's
   own path (`<bootstrap>/usr/bin/<program>`), then probe `/var/jb`, then `/`. Prefix
   substitution (`@PREFIX@`) happens only in packaging (launcher scripts), never in code.
-- **No libvroot.** The binary talks to libSystem directly. Path derivation replaces vroot.
+- **Prefer official RootHide tooling for bootstrap-style ports.** Evaluate pinned
+  `libroothide` / `libvroot` / `symredirect` before writing a new path shim. The shared
+  `../libroothide` checkout can supply the pinned Git object; CI fetches the same SHA.
+  `symredirect` changes binary imports: apply it only to the RootHide payload, before
+  signing, and prove the rootless payload does not load vroot. A common arm64 build is
+  not a promise of identical final bytes. Native apps and mixed Foundation/Bun runtimes
+  may keep explicit physical paths when global rewriting would mix filesystem views;
+  document the reason. Do not equate `libroot` (Rootless v2), `libroothide` source stubs,
+  and `libvroot` runtime redirection. See the official `Developer/vroot.md`,
+  `libroothide/init.c`, `libroothide/stub.h` and `opa334/libroot` README.
 - **Version lives in `configuration/version.txt` only.** `X.Y.Z` = upstream's version;
   `X.Y.Z-N` = packaging respin. `prepare-source.sh` should refuse a mismatch with upstream.
 - **Sign with ldid + entitlements**: `platform-application`, `com.apple.private.security.no-sandbox`,
-  `com.apple.private.security.container-required = false` (explicit false; absence is not the same).
+  `com.apple.private.security.container-required = false` (explicit false; absence is not the same),
+  `com.apple.private.security.storage.AppBundles` and
+  `com.apple.private.security.storage.AppDataContainers` for CLI payloads in RootHide containers.
   Add `com.apple.developer.kernel.extended-virtual-addressing` only for V8-class address cages.
 - **Test by installing** (`make install` over `iproxy 4422:2222`), never by copying a binary to
   `/var/mobile`: a copied binary runs with entitlements ignored. If no device is attached
@@ -221,3 +232,10 @@ bootstrap derivation to copy into any C tool that reads `/etc` or `/usr/share`.
 
 A report that says, per module, works / nosupport / untested, the two deb names + digests,
 the release URL, the OwnGoalPackages commit, and whether the device smoke test ran.
+
+The generic template installs a CMake payload directly in `usr/bin` and does not
+need a launcher. `packaging/PROGRAM.launcher.sh` and `scripts/check-launcher.py`
+are optional examples for a libexec-based port: rename the launcher, stage it
+with prefix substitution, and add its test to `make check` only when that port
+actually installs it. The physical-path launcher must not be paired with a
+vroot-rewritten payload.
