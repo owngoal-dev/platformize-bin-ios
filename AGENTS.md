@@ -34,17 +34,25 @@ needing one anyway, say so in its `AGENTS.md` and gate the rest.
 
 ### No `fork()`
 
-Prefer `posix_spawn()` or a plain `execve()`. By the time a jailbroken CLI
-starts a child it has the Objective-C runtime, Foundation and usually a thread
-or two loaded, and forking a process in that state is not safe on iOS.
+`posix_spawn()`, and only `posix_spawn()`. By the time a jailbroken CLI starts
+a child it has the Objective-C runtime, Foundation and usually a thread or two
+loaded, and forking a process in that state is not safe on iOS.
+
+`execve()` is not the fallback. Replacing the process image drops everything
+the current process was trusted for -- its signed identity and entitlements do
+not carry across, the new image has to satisfy AMFI on its own, and what it
+inherits from the bootstrap's view of the filesystem is not the same thing the
+caller had. It works often enough to look fine in a smoke test and then fails
+somewhere specific. Spawn a child and wait for it.
 
 What quietly puts a program back on the fork path:
 
 - Rust: `pre_exec`, `before_exec`, `uid`, `gid` or `groups` on a
   `std::process::Command`. Any one of them makes `std` abandon `posix_spawn()`
-  for `fork()` + `exec()`. `CommandExt::exec()` is fine -- it replaces the
-  process image and forks nothing.
-- C: `fork`, `vfork`, `daemon`, `system`, `popen`.
+  for `fork()` + `exec()`. `CommandExt::exec()` avoids the fork but is the
+  `execve()` case above -- prefer spawning over it too.
+- C: `fork`, `vfork`, `daemon`, `system`, `popen`, and `execve` family calls
+  that replace the caller rather than a freshly spawned child.
 
 Two shapes of fix, both in the wild:
 [fish](https://github.com/owngoal-dev/fish) rewrote its spawn path
@@ -54,7 +62,10 @@ cfg-guarded the single `pre_exec` and then *defined* `fork()` to fail with
 one.
 
 Make it a build gate rather than a review note: reject a Mach-O that imports
-`_fork` or `_vfork`, and audit the prepared source for the calls above. Then
+`_fork` or `_vfork`, and audit the prepared source for the calls above. Gate
+the `exec*` imports the same way -- and where a port keeps one, say which
+subcommand and why in its own `AGENTS.md`, so the exception is recorded rather
+than rediscovered. Then
 prove it runs, not just links -- build the same patched source for the host,
 where `target_vendor = "apple"` is equally true, and run the subcommands that
 spawn under `lldb` with breakpoints on `fork` and `vfork`.

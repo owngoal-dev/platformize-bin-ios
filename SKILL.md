@@ -66,13 +66,19 @@ Not absolutes -- a port may genuinely need one of these -- but the default, and
 what to reach for first. Where a port ends up needing one anyway, record it in
 that repo's `AGENTS.md` and gate everything else.
 
-**No `fork()`.** Prefer `posix_spawn()` or a plain `execve()`. By the time a
-jailbroken CLI starts a child it has the Objective-C runtime, Foundation and
-usually a thread or two loaded, and forking a process in that state is not safe
-on iOS. What quietly puts a program back on the fork path: in Rust, `pre_exec`,
+**No `fork()`, and no `execve()` either.** `posix_spawn()` is the one way to
+start a child. By the time a jailbroken CLI gets there it has the Objective-C
+runtime, Foundation and usually a thread or two loaded, and forking a process
+in that state is not safe on iOS. Replacing the image instead is not the
+fallback: the current process's signed identity and entitlements do not survive
+an `execve()`, the new image has to satisfy AMFI by itself, and it works often
+enough to pass a smoke test before failing somewhere specific. Spawn and wait.
+What quietly puts a program back on the fork path: in Rust, `pre_exec`,
 `before_exec`, `uid`, `gid` or `groups` on a `std::process::Command` -- any one
-makes `std` abandon `posix_spawn()` (`CommandExt::exec()` is fine, it replaces
-the image); in C, `fork`, `vfork`, `daemon`, `system`, `popen`. Two shapes of
+makes `std` abandon `posix_spawn()`; `CommandExt::exec()` dodges the fork but
+is the `execve()` case, so prefer spawning over it as well. In C, `fork`,
+`vfork`, `daemon`, `system`, `popen` and the `exec*` calls that replace the
+caller. Two shapes of
 fix, both in the wild: `fish` rewrote its spawn path
 (`0001-ios-forkless-exec`); `coreutils` cfg-guarded the single `pre_exec` and
 then *defined* `fork()` to fail with `EPERM` rather than importing it, so a
@@ -91,8 +97,10 @@ and stays: lowering one's own priority, `setpgid` to signal a child's group.
 
 **Gate both in `build-ios.sh`, not in review.** Reject a Mach-O importing
 `_fork`, `_vfork` or any of `setuid`, `seteuid`, `setreuid`, `setgid`,
-`setegid`, `setregid`, `setgroups`, `initgroups`; audit the prepared source for
-the calls above. Then prove it runs, not just links: build the same patched
+`setegid`, `setregid`, `setgroups`, `initgroups`; gate the `exec*` imports the
+same way, and where a port keeps one, name the subcommand and the reason in its
+own `AGENTS.md` so the exception is recorded rather than rediscovered; audit
+the prepared source for the calls above. Then prove it runs, not just links: build the same patched
 source for the host, where `target_vendor = "apple"` is equally true, and run
 the subcommands that spawn under `lldb` with breakpoints on `fork` and `vfork`.
 
