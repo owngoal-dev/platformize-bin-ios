@@ -21,27 +21,6 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
   own path (`<bootstrap>/usr/bin/<program>`), then probe `/var/jb`, then `/`. Prefix
   substitution (`@PREFIX@`) happens only in packaging (launcher scripts), never in code.
 - **No libvroot.** The binary talks to libSystem directly. Path derivation replaces vroot.
-- **Nothing may reach `fork()`.** By the time a jailbroken CLI starts a child it has the
-  Objective-C runtime, Foundation and often a thread loaded, and forking that is not safe on
-  iOS. Children go through `posix_spawn()` or `execve()`. Gate it in `build-ios.sh`, do not
-  merely review it: reject a Mach-O importing `_fork`/`_vfork`, and audit the prepared source
-  for what forces the fork path — in Rust, `pre_exec`/`before_exec`/`uid`/`gid`/`groups` on a
-  `std::process::Command` (`CommandExt::exec()` is fine, it replaces the image); in C, `fork`,
-  `vfork`, `daemon`, `system`, `popen`. Two shapes of fix, both in the wild: rewrite the spawn
-  path (`fish`, `0001-ios-forkless-exec`), or cfg-guard the offender and *define* `fork()` to
-  return `EPERM` so nothing can silently reach the real one (`coreutils`,
-  `0002-ios-deny-fork-and-credential-syscalls`; under `lto = "fat"` the import disappears
-  outright). Prove it at runtime too: the same patched source built for the host takes the
-  same `target_vendor = "apple"` branches, so run the spawning subcommands under `lldb` with
-  breakpoints on `fork` and `vfork`.
-- **Nothing escalates privilege.** Children are spawned and inherit the credentials the tool
-  was launched with; a jailbroken CLI starts as `mobile` and has no business assuming another
-  identity. Gate the Mach-O on `setuid`, `seteuid`, `setreuid`, `setgid`, `setegid`,
-  `setregid`, `setgroups` and `initgroups`, and drop the subcommand that needs them rather
-  than shipping it broken — `coreutils` drops `chroot`, its only caller, which on iOS would
-  need root anyway. Dropping is not escalating and stays: lowering one's own priority,
-  `setpgid` for signalling a child's process group. `std` links the credential calls into the
-  child half of its fork path, so define those to `EPERM` alongside `fork()`.
 - **Version lives in `configuration/version.txt` only.** `X.Y.Z` = upstream's version;
   `X.Y.Z-N` = packaging respin. `prepare-source.sh` should refuse a mismatch with upstream.
 - **Sign with ldid + entitlements**: `platform-application`, `com.apple.private.security.no-sandbox`,
@@ -80,6 +59,42 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
 - **Published packages come from the Release workflow only.** Local `make debs` must keep
   working (it is how you prove a build and `make install` on a device), but nothing built on
   a laptop is uploaded: push the tag and let CI build, sign, review and publish.
+
+## Preferred ways
+
+Not absolutes -- a port may genuinely need one of these -- but the default, and
+what to reach for first. Where a port ends up needing one anyway, record it in
+that repo's `AGENTS.md` and gate everything else.
+
+**No `fork()`.** Prefer `posix_spawn()` or a plain `execve()`. By the time a
+jailbroken CLI starts a child it has the Objective-C runtime, Foundation and
+usually a thread or two loaded, and forking a process in that state is not safe
+on iOS. What quietly puts a program back on the fork path: in Rust, `pre_exec`,
+`before_exec`, `uid`, `gid` or `groups` on a `std::process::Command` -- any one
+makes `std` abandon `posix_spawn()` (`CommandExt::exec()` is fine, it replaces
+the image); in C, `fork`, `vfork`, `daemon`, `system`, `popen`. Two shapes of
+fix, both in the wild: `fish` rewrote its spawn path
+(`0001-ios-forkless-exec`); `coreutils` cfg-guarded the single `pre_exec` and
+then *defined* `fork()` to fail with `EPERM` rather than importing it, so a
+regression cannot silently find the real one (under `lto = "fat"` the import
+disappears outright).
+
+**No `set*id()`.** Prefer inheriting. A jailbroken CLI starts as `mobile` and
+children inherit that through the spawn; a tool that re-assumes an identity is
+doing something the bootstrap did not ask for. When a subcommand cannot work
+without them, prefer dropping that subcommand over shipping it broken --
+`coreutils` drops `chroot`, its only caller, which on iOS needs root anyway.
+Watch for calls nothing asks for: Rust's `std` links the credential syscalls
+into the child half of its fork path even when no code sets a uid, so define
+those to `EPERM` alongside `fork()`. *Dropping* privilege is a different thing
+and stays: lowering one's own priority, `setpgid` to signal a child's group.
+
+**Gate both in `build-ios.sh`, not in review.** Reject a Mach-O importing
+`_fork`, `_vfork` or any of `setuid`, `seteuid`, `setreuid`, `setgid`,
+`setegid`, `setregid`, `setgroups`, `initgroups`; audit the prepared source for
+the calls above. Then prove it runs, not just links: build the same patched
+source for the host, where `target_vendor = "apple"` is equally true, and run
+the subcommands that spawn under `lldb` with breakpoints on `fork` and `vfork`.
 
 ## Workflow
 
