@@ -17,6 +17,24 @@ ENTITLEMENTS = [
 ]
 
 
+def private_build_paths():
+    paths = {
+        str(Path.home()).encode(),
+        b'/Users/runner/work',
+        b'/home/runner/work',
+    }
+    for name in ('GITHUB_WORKSPACE', 'RUNNER_TEMP'):
+        if value := os.environ.get(name):
+            paths.add(os.path.normpath(value).encode())
+            paths.add(os.path.realpath(value).encode())
+    return sorted(path for path in paths if path not in {b'', b'/'})
+
+
+def embeds_path(contents, path):
+    """Match a directory itself or descendants without prefix collisions."""
+    return re.search(re.escape(path) + rb'(?=/|\x00|$)', contents) is not None
+
+
 def run(*args):
     return subprocess.check_output(args, text=True).strip()
 
@@ -55,6 +73,10 @@ def audit(deb):
                 scripts += 1
             if not header.startswith(b'\xcf\xfa\xed\xfe'):
                 continue
+            contents = item.read_bytes()
+            for private_path in private_build_paths():
+                require(not embeds_path(contents, private_path),
+                        f'{relative}: embeds private build path')
             require(os.access(item, os.X_OK), f'{relative}: Mach-O lacks execute mode')
             require(run('lipo', '-archs', str(item)) == 'arm64', f'{relative}: wrong CPU')
             build = run('vtool', '-show-build', str(item))
