@@ -26,6 +26,57 @@ build here.
   Add a fact together with how it was observed (probe binary, `nm -m`,
   `.tbd` grep). Remove a fact when it stops being true.
 
+## Preferred ways
+
+Not absolutes -- there are tools that genuinely cannot be written without these
+-- but the default, and the thing to reach for first. Where a port ends up
+needing one anyway, say so in its `AGENTS.md` and gate the rest.
+
+### No `fork()`
+
+Prefer `posix_spawn()` or a plain `execve()`. By the time a jailbroken CLI
+starts a child it has the Objective-C runtime, Foundation and usually a thread
+or two loaded, and forking a process in that state is not safe on iOS.
+
+What quietly puts a program back on the fork path:
+
+- Rust: `pre_exec`, `before_exec`, `uid`, `gid` or `groups` on a
+  `std::process::Command`. Any one of them makes `std` abandon `posix_spawn()`
+  for `fork()` + `exec()`. `CommandExt::exec()` is fine -- it replaces the
+  process image and forks nothing.
+- C: `fork`, `vfork`, `daemon`, `system`, `popen`.
+
+Two shapes of fix, both in the wild:
+[fish](https://github.com/owngoal-dev/fish) rewrote its spawn path
+(`0001-ios-forkless-exec`); [coreutils](https://github.com/owngoal-dev/coreutils)
+cfg-guarded the single `pre_exec` and then *defined* `fork()` to fail with
+`EPERM` rather than importing it, so a regression cannot silently find the real
+one.
+
+Make it a build gate rather than a review note: reject a Mach-O that imports
+`_fork` or `_vfork`, and audit the prepared source for the calls above. Then
+prove it runs, not just links -- build the same patched source for the host,
+where `target_vendor = "apple"` is equally true, and run the subcommands that
+spawn under `lldb` with breakpoints on `fork` and `vfork`.
+
+### No `set*id()`
+
+Prefer inheriting. A jailbroken CLI starts as `mobile`, children inherit that
+through the spawn, and a tool that re-assumes an identity is doing something
+the bootstrap did not ask for. Gate the Mach-O on `setuid`, `seteuid`,
+`setreuid`, `setgid`, `setegid`, `setregid`, `setgroups` and `initgroups`.
+
+When a subcommand cannot work without them, prefer dropping that subcommand
+over shipping it broken: `coreutils` drops `chroot`, its only caller, which on
+iOS needs root regardless.
+
+Watch for calls nothing asks for. Rust's `std` links the credential syscalls
+into the child half of its fork path even when no code sets a uid, so define
+those to `EPERM` alongside `fork()`.
+
+*Dropping* privilege is a different thing and stays: lowering one's own
+priority, `setpgid` to signal a child's process group.
+
 ## Layout
 
 ```
