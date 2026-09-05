@@ -234,8 +234,12 @@ A report that says, per module, works / nosupport / untested, the two deb names 
 the release URL, the OwnGoalPackages commit, and whether the device smoke test ran.
 
 The generic template installs a CMake payload directly in `usr/bin` and does not
-need a launcher. `packaging/PROGRAM.launcher.sh` and `scripts/check-launcher.py`
-are optional examples for a libexec-based port: rename the launcher, stage it
-with prefix substitution, and add its test to `make check` only when that port
-actually installs it. The physical-path launcher must not be paired with a
-vroot-rewritten payload.
+need a launcher. `packaging/PROGRAM.launcher.c` is the optional example for a
+libexec-based port. Compile it as an iOS Mach-O with `OG_PROGRAM` set to the
+payload name. Set `OG_STATIC_PREFIX` to `/var/jb` for rootless; leave it empty
+for RootHide so it loads `/usr/lib/libroot.dylib` relative to itself and calls
+`libroot_get_jbroot_prefix`. Sign and verify the launcher separately from the
+payload, then test direct execution from sh, zsh and fish on device. A shell
+launcher is not sufficient on RootHide: fish can locate it while the kernel
+still fails to resolve its unprefixed `/bin/sh` shebang. The physical-path
+launcher must not be paired with a vroot-rewritten payload.

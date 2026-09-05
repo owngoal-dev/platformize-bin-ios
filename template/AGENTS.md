@@ -109,10 +109,15 @@ and verify the extracted signature after packaging; a correct package layout
 alone does not establish access to RootHide's app-container installation path.
 Source: https://github.com/roothide/Developer/blob/main/README.md
 
-For payloads that do not use vroot, the launcher exports physical bootstrap
-PATH, SHELL and default CA/browser paths. Preserve explicit CA/browser settings
-and already physical or custom SHELL paths. Host launcher tests simulate the
-path boundary and verify argv/exit status; they do not prove that iOS loads the
-binary. Test the installed package from both zsh and fish on a RootHide device.
+For libexec payloads that do not use vroot, compile
+`packaging/PROGRAM.launcher.c` as an iOS Mach-O. It asks RootHide's
+`/usr/lib/libroot.dylib` for the physical bootstrap root and exports physical
+PATH, SHELL and default CA/browser paths; the rootless build compiles in
+`/var/jb` and does not load libroot. Preserve explicit CA/browser settings and
+already physical or custom SHELL paths. `execv` is intentional in this tiny,
+single-threaded launcher because a shell script fails when fish hands its
+unprefixed `/bin/sh` shebang to the kernel. Sign launcher and payload
+separately, and test direct execution from sh, zsh and fish on a RootHide
+device.
 Do not add vroot to a payload while retaining a launcher that exports physical
 paths: the filesystem view must remain consistent across the boundary.
