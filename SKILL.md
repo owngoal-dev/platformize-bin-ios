@@ -1,6 +1,6 @@
 ---
 name: platformize-bin-ios
-description: Port an upstream command-line tool (C/CMake, Rust/Cargo, …) to jailbroken iOS and ship it as a packaging-only repo that builds one arm64 binary and packages it for both roothide (iphoneos-arm64e) and rootless (iphoneos-arm64) bootstraps, releases via GitHub Actions, and is picked up by the OwnGoalPackages APT repo. Use when asked to "build X for jailbroken iOS", "package X like codex/grok/fastfetch", "make X work on rootless and roothide", or to add a tool to owngoalpackages.
+description: Port an upstream command-line tool (C/CMake, Rust/Cargo, …) to jailbroken iOS and ship it as a packaging-only repo that builds one arm64 binary and packages it for both roothide (iphoneos-arm64e) and rootless (iphoneos-arm64) bootstraps, releases via GitHub Actions, and is picked up by the owngoal-packages APT repo. Use when asked to "build X for jailbroken iOS", "package X like codex/grok/fastfetch", "make X work on rootless and roothide", or to add a tool to owngoal-packages.
 ---
 
 # platformize-bin-ios
@@ -40,7 +40,7 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
 - **Test by installing** (`make install` over `iproxy 4422:2222`), never by copying a binary to
   `/var/mobile`: a copied binary runs with entitlements ignored. If no device is attached
   (`idevice_id -l` empty), say so in the report; do not claim it runs.
-- **OwnGoalPackages contract**: non-draft, non-prerelease tag `vX.Y.Z`; assets ending in
+- **owngoal-packages contract**: non-draft, non-prerelease tag `vX.Y.Z`; assets ending in
   `iphoneos-arm64.deb` / `iphoneos-arm64e.deb`; `SHA256SUMS` of bare names. The APT build
   *fails* if a manifest entry has no release, so create the release before editing the manifest.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`** (`ln -s AGENTS.md CLAUDE.md`), never a file.
@@ -64,7 +64,7 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
   `Follow upstream` runs at 00:00 UTC, pins the newest `X.Y.Z`, proves `patches/` apply,
   commits, tags `vX.Y.Z` and dispatches `Release` on the tag
   (`gh workflow run release.yml --ref vX.Y.Z`, with `actions: write`); a tag pushed with the
-  workflow's own token never fires a push-triggered workflow. OwnGoalPackages fetches releases
+  workflow's own token never fires a push-triggered workflow. owngoal-packages fetches releases
   at 04:00 UTC. A failed `Follow upstream` run means a patch stopped applying: see
   "When Follow upstream fails".
 - **Published packages come from the Release workflow only.** Local `make debs` must keep
@@ -144,7 +144,7 @@ the subcommands that spawn under `lldb` with breakpoints on `fork` and `vfork`.
    package comes out of the workflow**: never `gh release create` or upload a `.deb` built on
    your machine; local `make debs` exists to prove the build and to `make install` on a device.
    Watch `gh run watch` until Release is green; only then move on.
-10. **Add to OwnGoalPackages** `manifest.json` (`repository` + `architectures`), commit, push,
+10. **Add to owngoal-packages** `manifest.json` (`repository` + `architectures`), commit, push,
     confirm its "Build and Deploy APT Repository" run goes green.
 11. **Report**: what works, what is `nosupport`, whether the device test ran.
 
@@ -222,7 +222,7 @@ the `wiki.qaq.<program>` default in `makefile`, `package-deb.sh`, `install-devic
 `follow-upstream.sh` tag regex (`^X.Y.Z$` vs `^rust-vX.Y.Z$`); `build-ios.sh`'s configure
 flags and the payload verification paths; `install-device.sh`'s smoke commands; the workflow
 tool-install step (`cmake ninja` vs `rust-toolchain`). Write `AGENTS.md`/`README.md` in the
-sibling style: hard rules, how the port works, layout, build & verify, the OwnGoalPackages
+sibling style: hard rules, how the port works, layout, build & verify, the owngoal-packages
 contract. `docs/index.html` and `manifest.json` are the Pages redirect + package manifest.
 
 `template/patches/example-0004-ios-bootstrap-config-dir.patch` shows the executable-path
@@ -231,7 +231,7 @@ bootstrap derivation to copy into any C tool that reads `/etc` or `/usr/share`.
 ## Output
 
 A report that says, per module, works / nosupport / untested, the two deb names + digests,
-the release URL, the OwnGoalPackages commit, and whether the device smoke test ran.
+the release URL, the owngoal-packages commit, and whether the device smoke test ran.
 
 The generic template installs a CMake payload directly in `usr/bin` and does not
 need a launcher. `packaging/PROGRAM.launcher.c` is the optional example for a

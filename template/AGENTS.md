@@ -86,7 +86,7 @@ build/                       everything generated; not source
 Test by installing, never by copying a binary onto `/var/mobile`. A copied
 binary runs with its entitlements ignored (trustcache never saw it).
 
-## The OwnGoalPackages contract
+## The owngoal-packages contract
 
 A non-draft, non-prerelease tag `vX.Y.Z`; assets whose names end in
 `iphoneos-arm64.deb` / `iphoneos-arm64e.deb`; a `SHA256SUMS` of bare names.
@@ -96,7 +96,7 @@ upstream release, `make source` to prove `patches/` still apply, then commit
 and tag `vX.Y.Z` as `bot <bot@owngoal.dev>` and dispatch `Release` on that
 tag (`gh workflow run release.yml --ref vX.Y.Z`): a tag pushed with the
 workflow's own token never fires a push-triggered workflow, and
-`workflow_dispatch` is the documented exception. OwnGoalPackages fetches the
+`workflow_dispatch` is the documented exception. owngoal-packages fetches the
 release at 04:00 UTC.
 
 ## RootHide signing and launcher checks

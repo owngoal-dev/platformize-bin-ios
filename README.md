@@ -4,7 +4,7 @@ A [Claude Code](https://claude.com/claude-code) skill that ports an upstream
 command-line tool to **jailbroken iOS** and ships it the way OwnGoal Studio
 does: one arm64 build, packaged for both **roothide** and **rootless**
 bootstraps, released from GitHub Actions, and served by the
-[OwnGoal Studio APT repository](https://github.com/owngoal-dev/OwnGoalPackages).
+[OwnGoal Studio APT repository](https://github.com/owngoal-dev/owngoal-packages).
 
 It is the distilled procedure behind
 [codex](https://github.com/owngoal-dev/codex),
@@ -30,7 +30,7 @@ git clone https://github.com/owngoal-dev/platformize-bin-ios ~/.claude/skills/pl
 
 Then ask Claude Code to "build X for jailbroken iOS" or "package X like
 codex/grok/fastfetch". The skill triggers on those phrases and on "add X to
-owngoalpackages".
+owngoal-packages".
 
 ## The contract in one screen
 
