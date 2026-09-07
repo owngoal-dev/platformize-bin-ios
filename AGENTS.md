@@ -28,7 +28,7 @@ build here.
 
 ## Preferred ways
 
-Not absolutes -- there are tools that genuinely cannot be written without these
+Not absolutes — there are tools that genuinely cannot be written without these
 -- but the default, and the thing to reach for first. Where a port ends up
 needing one anyway, say so in its `AGENTS.md` and gate the rest.
 
@@ -39,7 +39,7 @@ a child it has the Objective-C runtime, Foundation and usually a thread or two
 loaded, and forking a process in that state is not safe on iOS.
 
 `execve()` is not the fallback. Replacing the process image drops everything
-the current process was trusted for -- its signed identity and entitlements do
+the current process was trusted for — its signed identity and entitlements do
 not carry across, the new image has to satisfy AMFI on its own, and what it
 inherits from the bootstrap's view of the filesystem is not the same thing the
 caller had. It works often enough to look fine in a smoke test and then fails
@@ -50,7 +50,7 @@ What quietly puts a program back on the fork path:
 - Rust: `pre_exec`, `before_exec`, `uid`, `gid` or `groups` on a
   `std::process::Command`. Any one of them makes `std` abandon `posix_spawn()`
   for `fork()` + `exec()`. `CommandExt::exec()` avoids the fork but is the
-  `execve()` case above -- prefer spawning over it too.
+  `execve()` case above — prefer spawning over it too.
 - C: `fork`, `vfork`, `daemon`, `system`, `popen`, and `execve` family calls
   that replace the caller rather than a freshly spawned child.
 
@@ -63,10 +63,10 @@ one.
 
 Make it a build gate rather than a review note: reject a Mach-O that imports
 `_fork` or `_vfork`, and audit the prepared source for the calls above. Gate
-the `exec*` imports the same way -- and where a port keeps one, say which
+the `exec*` imports the same way — and where a port keeps one, say which
 subcommand and why in its own `AGENTS.md`, so the exception is recorded rather
 than rediscovered. Then
-prove it runs, not just links -- build the same patched source for the host,
+prove it runs, not just links — build the same patched source for the host,
 where `target_vendor = "apple"` is equally true, and run the subcommands that
 spawn under `lldb` with breakpoints on `fork` and `vfork`.
 

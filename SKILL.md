@@ -73,7 +73,7 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
 
 ## Preferred ways
 
-Not absolutes -- a port may genuinely need one of these -- but the default, and
+Not absolutes — a port may genuinely need one of these — but the default, and
 what to reach for first. Where a port ends up needing one anyway, record it in
 that repo's `AGENTS.md` and gate everything else.
 
@@ -85,7 +85,7 @@ fallback: the current process's signed identity and entitlements do not survive
 an `execve()`, the new image has to satisfy AMFI by itself, and it works often
 enough to pass a smoke test before failing somewhere specific. Spawn and wait.
 What quietly puts a program back on the fork path: in Rust, `pre_exec`,
-`before_exec`, `uid`, `gid` or `groups` on a `std::process::Command` -- any one
+`before_exec`, `uid`, `gid` or `groups` on a `std::process::Command` — any one
 makes `std` abandon `posix_spawn()`; `CommandExt::exec()` dodges the fork but
 is the `execve()` case, so prefer spawning over it as well. In C, `fork`,
 `vfork`, `daemon`, `system`, `popen` and the `exec*` calls that replace the
@@ -99,7 +99,7 @@ disappears outright).
 **No `set*id()`.** Prefer inheriting. A jailbroken CLI starts as `mobile` and
 children inherit that through the spawn; a tool that re-assumes an identity is
 doing something the bootstrap did not ask for. When a subcommand cannot work
-without them, prefer dropping that subcommand over shipping it broken --
+without them, prefer dropping that subcommand over shipping it broken —
 `coreutils` drops `chroot`, its only caller, which on iOS needs root anyway.
 Watch for calls nothing asks for: Rust's `std` links the credential syscalls
 into the child half of its fork path even when no code sets a uid, so define
