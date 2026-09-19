@@ -61,7 +61,7 @@ rm -f "$stamp_file"
 
 echo "fetching $UPSTREAM_REPO at $UPSTREAM_REF"
 git -C "$work_dir" fetch --quiet --depth 1 --force origin "$UPSTREAM_REF"
-git -C "$work_dir" checkout --quiet --detach FETCH_HEAD
+git -C "$work_dir" checkout --quiet --force --detach FETCH_HEAD
 git -C "$work_dir" reset --quiet --hard FETCH_HEAD
 git -C "$work_dir" clean -qfdx
 
