@@ -52,7 +52,8 @@ rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal >&2
 rustup target add "$rust_target" --toolchain "$RUST_TOOLCHAIN" >&2
 # Select nested compiler invocations too, even when Homebrew shadows rustup.
 toolchain_rustc="$(rustup which --toolchain "$RUST_TOOLCHAIN" rustc)"
-export PATH="$(dirname "$toolchain_rustc"):$PATH"
+toolchain_bin="$(dirname "$toolchain_rustc")"
+export PATH="$toolchain_bin:$PATH"
 
 export SDKROOT="$sdk_path"
 export IPHONEOS_DEPLOYMENT_TARGET="$MIN_IOS"
