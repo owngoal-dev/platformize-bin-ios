@@ -1,0 +1,29 @@
+{
+  "class": "DepictionTabView",
+  "minVersion": "0.4",
+  "tabs": [
+    {
+      "class": "DepictionStackView",
+      "tabname": "Details",
+      "views": [
+        {
+          "class": "DepictionSubheaderView",
+          "title": "View Device Information",
+          "useBoldText": true
+        },
+        {
+          "class": "DepictionHeaderView",
+          "title": "Description"
+        },
+        {
+          "class": "DepictionSeparatorView"
+        },
+        {
+          "class": "DepictionMarkdownView",
+          "markdown": "Run `fastfetch` in a terminal to view device information, including your iOS version, uptime, memory, and storage.\n\n## Compatibility\n\nRequires iOS 15 or later and a roothide or rootless bootstrap. Choose `iphoneos-arm64e` for roothide or `iphoneos-arm64` for rootless.\n\n[View Source](https://github.com/owngoal-dev/fastfetch)",
+          "useSpacing": true
+        }
+      ]
+    }
+  ]
+}

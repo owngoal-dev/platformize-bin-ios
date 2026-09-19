@@ -151,8 +151,8 @@ subcommands that spawn under `lldb` with breakpoints on `fork` and `vfork`.
    (credentials, home or scratch paths, device identifiers, addresses) and report back. Stop
    on any finding; nothing goes out until it is clean.
 9. **Publish**: commit; `gh repo create owngoal-dev/<program> --public --source . --push`;
-   enable Pages from `main:/docs` (`gh api -X POST repos/owngoal-dev/<program>/pages
-   -f 'source[branch]=main' -f 'source[path]=/docs'`); `git tag vX.Y.Z && git push origin vX.Y.Z`.
+   enable Pages with GitHub Actions (`gh api -X POST repos/owngoal-dev/<program>/pages
+   -f build_type=workflow`; use `-X PUT` for an existing Pages site); `git tag vX.Y.Z && git push origin vX.Y.Z`.
    The Release workflow builds that tag and creates the GitHub Release. **Every published
    package comes out of the workflow**: never `gh release create` or upload a `.deb` built on
    your machine; local `make debs` exists to prove the build and to `make install` on a device.
@@ -232,10 +232,13 @@ chmod +x scripts/*.sh
 grep -rn 'fastfetch' makefile scripts packaging configuration .github docs manifest.json   # every hit is a rename or a rewrite
 ```
 
-`template/.github/workflows/` is the Release + Follow-upstream pair from
-fastfetch. Rewrite every `fastfetch` hit in those files (job names, brew
-tooling: `cmake ninja` vs `rust-toolchain`). Do not copy an app Pages
-workflow here: bin repos still serve `docs/` as legacy `main:/docs`.
+`template/.github/workflows/` contains Release, Follow upstream, and Pages.
+Rewrite every `fastfetch` hit (job names and build tooling), and update the
+`owngoal-dev/fastfetch` repository and Pages URLs to the destination owner/repo.
+Pages deploys `docs/` with GitHub Actions. Keep its `workflow_run.workflows`
+entry equal to the release workflow name; this refreshes release notes even
+when the Release workflow publishes with `GITHUB_TOKEN`. Release events
+dispatch Pages on `main`, so the deployment environment need not permit tags.
 
 Then edit, in this order: `configuration/upstream.env` (repo, sha, PROGRAM), `version.txt`,
 the `wiki.qaq.<program>` default in `makefile`, `package-deb.sh`, `install-device.sh`,
@@ -245,6 +248,21 @@ flags and the payload verification paths; `install-device.sh`'s smoke commands; 
 tool-install step (`cmake ninja` vs `rust-toolchain`). Write `AGENTS.md`/`README.md` in the
 sibling style: hard rules, how the port works, layout, build & verify, the owngoal-packages
 contract. `docs/index.html` and `manifest.json` are the Pages redirect + package manifest.
+
+Rewrite `docs/depiction.json` for the actual tool: describe only supported
+features and match the minimum iOS version in `configuration/upstream.env`.
+The control file publishes its URL as `SileoDepiction`, with `Depiction` as
+the web fallback. If the README has artwork, set `headerImage` to the largest
+actual banner image; otherwise omit it rather than inventing a screenshot.
+Pages runs the pinned shared `owngoal-packages` updater with
+`--repository "$GITHUB_REPOSITORY" --depiction docs/depiction.json`. It writes
+GitHub Releases into the Changelog tab at deploy time; do not maintain a
+second changelog implementation or handwritten release entries. Before the
+first stable release, the Details tab can publish on its own.
+
+This CLI template has no app-registration hooks. Do not add explicit
+`uicache` calls to install or removal scripts. If a port includes an app
+bundle, depend on `uikittools` and let its package triggers register it.
 
 `template/patches/example-0004-ios-bootstrap-config-dir.patch` shows the executable-path
 bootstrap derivation to copy into any C tool that reads `/etc` or `/usr/share`.

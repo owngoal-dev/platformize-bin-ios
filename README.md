@@ -5,7 +5,8 @@ A good starting point for packaging command-line tools for jailbroken iOS.
 ## Included
 
 - `SKILL.md`: porting, packaging, and release guidance.
-- `template/`: build scripts, packaging files, and release workflows.
+- `template/`: build scripts, packaging files, native package details, and release workflows.
+- GitHub Pages deployment with a changelog populated from GitHub Releases.
 - `scripts/audit-binpack.py`: local package archive checks.
 
 ## Get Started
