@@ -29,8 +29,10 @@ same code.
   upstream's version; `X.Y.Z-N` is a packaging-only respin.
 - **Evaluate official libvroot first for bootstrap-style ports.** Use it only in
   the RootHide package when all path consumers share that view. Native or mixed
-  runtimes may retain physical paths with a documented reason; rootless does not
-  load the RootHide runtime.
+  runtimes keep physical paths; `scripts/verify-process-symbols.sh` fails the
+  common build on `libvroot`, `_fork` / `_vfork` / `exec*` / `set*id`. Rootless
+  does not load the RootHide runtime. `ls`/`stat`/`readlink` on a vroot-linked
+  process are not the kernel's answers.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`**, never a file of its own. One
   set of notes, two names; `make check` enforces it.
 - **Review for sensitive information before anything is uploaded or
@@ -63,6 +65,7 @@ packaging/release-notes.md   GitHub Release body template
 scripts/prepare-source.sh    fetch + patch (idempotent, stamped)
 scripts/rebase-patches.sh    re-target patches/ at a new upstream sha
 scripts/build-ios.sh         cross-compile, verify Mach-O, assemble payload
+scripts/verify-process-symbols.sh  no fork/exec, set*id or libvroot on the payload
 scripts/package-deb.sh       stage + ldid + dpkg-deb + verify
 scripts/install-device.sh    install over SSH and smoke-test (dev only)
 build/                       everything generated; not source

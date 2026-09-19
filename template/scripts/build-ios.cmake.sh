@@ -109,6 +109,10 @@ architectures="$(lipo -archs "$executable")"
 
 while read -r dependency; do
     case "$dependency" in
+    *libvroot*)
+        echo "error: $executable links libvroot on the common build: $dependency" >&2
+        exit 65
+        ;;
     @*) ;;
     /usr/lib/* | /System/Library/Frameworks/*) ;;
     *)
@@ -137,6 +141,7 @@ vtool -show-build "$payload/usr/bin/$PROGRAM" 2>/dev/null | grep -qE '^ *platfor
     echo "error: stripped $PROGRAM is no longer an iOS binary" >&2
     exit 65
 }
+"$repository_root/scripts/verify-process-symbols.sh" "$payload/usr/bin/$PROGRAM"
 
 {
     echo "built $PROGRAM: $ARCH, iOS $MIN_IOS minimum, $(du -h "$payload/usr/bin/$PROGRAM" | cut -f1 | tr -d ' ')"

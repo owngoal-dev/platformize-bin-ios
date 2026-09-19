@@ -45,11 +45,20 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
   *fails* if a manifest entry has no release, so create the release before editing the manifest.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`** (`ln -s AGENTS.md CLAUDE.md`), never a file.
   `make check` enforces it.
-- **The make file is `makefile`, lowercase** (GNU make looks for `GNUmakefile`, `makefile`,
-  `Makefile` in that order). Every OwnGoal repo uses the same spelling; keep it.
-- **Directories are lowercase, single words**: `configuration/`, `packaging/`, `scripts/`,
-  `patches/`, `docs/`. Only `AGENTS.md`, `README.md`, `LICENSE` and the DEBIAN control
-  directory keep their conventional case. macOS hides case mistakes; CI on Linux does not.
+- **Packaging-only C/Rust repos use `makefile`, lowercase**, and lowercase
+  directories (`configuration/`, `packaging/`, `scripts/`, `patches/`, `docs/`).
+  Only `AGENTS.md`, `README.md`, `LICENSE` and the DEBIAN control directory keep
+  their conventional case. macOS hides case mistakes; CI on Linux does not.
+  Native *apps* use `Makefile` / `Scripts/` / `Packaging/` / `Configuration/`.
+  A SwiftPM CLI that copied the app casing (`kk`) is an exception — do not
+  "fix" it to lowercase.
+- **Native physical-path tools do not load `libvroot`.** `otool -L` on the
+  common arm64 build must not show it; `/usr/lib/libvroot.dylib` is a system
+  path and will slip past a "only /usr/lib" check. `ls`/`stat`/`readlink` on
+  roothide lie when the caller is vroot-linked — they translate link text and
+  `st_size`. A native Foundation/XPC binary keeps physical paths and does not
+  trust those answers. `symredirect` is for bootstrap-style C/Rust ports, and
+  only on the RootHide payload.
 - **Review for sensitive information before every upload or publish, by reading.** There is
   deliberately no scanner script. Before a push, a tag or a release, have an agent (spawn a
   subagent) read the diff, the staged package tree and `strings` of the built binary for
@@ -106,14 +115,18 @@ into the child half of its fork path even when no code sets a uid, so define
 those to `EPERM` alongside `fork()`. *Dropping* privilege is a different thing
 and stays: lowering one's own priority, `setpgid` to signal a child's group.
 
-**Gate both in `build-ios.sh`, not in review.** Reject a Mach-O importing
-`_fork`, `_vfork` or any of `setuid`, `seteuid`, `setreuid`, `setgid`,
-`setegid`, `setregid`, `setgroups`, `initgroups`; gate the `exec*` imports the
-same way, and where a port keeps one, name the subcommand and the reason in its
-own `AGENTS.md` so the exception is recorded rather than rediscovered; audit
-the prepared source for the calls above. Then prove it runs, not just links: build the same patched
-source for the host, where `target_vendor = "apple"` is equally true, and run
-the subcommands that spawn under `lldb` with breakpoints on `fork` and `vfork`.
+**Gate both in `build-ios.sh`, not in review.**
+`template/scripts/verify-process-symbols.sh` rejects a Mach-O importing
+`_fork`, `_vfork`, the `exec*` family, or any of `setuid`, `seteuid`,
+`setreuid`, `setgid`, `setegid`, `setregid`, `setgroups`, `initgroups`, and
+rejects `libvroot` on the common build. Both `build-ios.*.sh` call it on the
+payload. Where a port keeps one of those imports, name the subcommand and the
+reason in its own `AGENTS.md` so the exception is recorded rather than
+rediscovered, and skip or wrap the check for that binary (the RootHide
+`PROGRAM.launcher.c` is the documented `execv` exception — it is a separate
+Mach-O). Then prove it runs, not just links: build the same patched source for
+the host, where `target_vendor = "apple"` is equally true, and run the
+subcommands that spawn under `lldb` with breakpoints on `fork` and `vfork`.
 
 ## Workflow
 
@@ -211,10 +224,18 @@ fallback) so an `ios` id still resolves to the Apple asset.
 cp -R ~/.claude/skills/platformize-bin-ios/template/ <repo>/ && cd <repo>   # or wherever this skill is checked out
 mv packaging/PROGRAM.entitlements packaging/<program>.entitlements
 # CMake project:  mv scripts/build-ios.cmake.sh scripts/build-ios.sh; rm scripts/build-ios.cargo.sh configuration/upstream.cargo.env
-# Cargo project:  mv scripts/build-ios.cargo.sh scripts/build-ios.sh; mv configuration/upstream.cargo.env configuration/upstream.env; rm scripts/build-ios.cmake.sh
+# Cargo project:  do not blindly mv scripts/build-ios.cargo.sh — that file is grok's
+#                 (ripgrep bundle). Copy ../codex/scripts/build-ios.sh or
+#                 ../grok/scripts/build-ios.sh instead, then add the call to
+#                 scripts/verify-process-symbols.sh. rm scripts/build-ios.cmake.sh
 chmod +x scripts/*.sh
 grep -rn 'fastfetch' makefile scripts packaging configuration .github docs manifest.json   # every hit is a rename or a rewrite
 ```
+
+`template/.github/workflows/` is the Release + Follow-upstream pair from
+fastfetch. Rewrite every `fastfetch` hit in those files (job names, brew
+tooling: `cmake ninja` vs `rust-toolchain`). Do not copy an app Pages
+workflow here: bin repos still serve `docs/` as legacy `main:/docs`.
 
 Then edit, in this order: `configuration/upstream.env` (repo, sha, PROGRAM), `version.txt`,
 the `wiki.qaq.<program>` default in `makefile`, `package-deb.sh`, `install-device.sh`,

@@ -18,7 +18,7 @@ what a command-line process can and cannot do on a device.
 | path | what it is |
 | --- | --- |
 | `SKILL.md` | the skill: the packaging contract, a step-by-step workflow, and an iOS porting playbook (header shim, SDK traps, IOKit/Metal/MobileGestalt facts learned on real devices) |
-| `template/` | a ready-to-copy packaging repo: `makefile`, `scripts/` for CMake and Cargo projects, `packaging/`, GitHub workflows (release + daily upstream follow), Pages redirect, package manifest |
+| `template/` | a ready-to-copy packaging repo: `makefile`, `scripts/` for CMake and Cargo projects (including the fork/exec/`libvroot` gate), `packaging/`, GitHub workflows (release + daily upstream follow), Pages redirect, package manifest |
 | `template/scripts/rebase-patches.sh` | `make rebase-patches REF=<sha>`: re-targets `patches/` at a new upstream commit when the daily upstream follow stops applying, lists the rejects to fix by hand, then rewrites and re-verifies the patch set |
 | `AGENTS.md` (`CLAUDE.md` links to it) | notes for agents working on this repository |
 
@@ -43,6 +43,8 @@ owngoal-packages".
 - Sign with `ldid` and the platform, container and storage entitlements needed on a
   jailbroken device; test by installing, never by copying a binary over.
 - `CLAUDE.md` is a symlink to `AGENTS.md`.
+- Packaging-only C/Rust repos use lowercase `makefile` and directories; a
+  SwiftPM CLI may match the app casing (`kk`).
 - Review for sensitive information before every upload or publish by having
   an agent read the diff, the payload and `strings` of the binary. No scanner.
 - Release first, then add to the APT manifest; its build fails otherwise.
@@ -55,7 +57,7 @@ owngoal-packages".
 cp -R template/ <repo>/ && cd <repo>
 mv packaging/PROGRAM.entitlements packaging/<program>.entitlements
 # CMake:  mv scripts/build-ios.cmake.sh scripts/build-ios.sh && rm scripts/build-ios.cargo.sh configuration/upstream.cargo.env
-# Cargo:  mv scripts/build-ios.cargo.sh scripts/build-ios.sh && mv configuration/upstream.cargo.env configuration/upstream.env && rm scripts/build-ios.cmake.sh
+# Cargo:  copy ../codex or ../grok scripts/build-ios.sh (the template cargo file is grok's ripgrep build); rm scripts/build-ios.cmake.sh
 chmod +x scripts/*.sh
 grep -rn fastfetch makefile scripts packaging configuration .github docs manifest.json   # every hit is a rename
 make check

@@ -143,6 +143,10 @@ architectures="$(lipo -archs "$executable")"
 
 while read -r dependency; do
     case "$dependency" in
+    *libvroot*)
+        echo "error: $executable links libvroot on the common build: $dependency" >&2
+        exit 65
+        ;;
     @*) ;;
     /usr/lib/* | /System/Library/Frameworks/*) ;;
     *)
@@ -156,6 +160,7 @@ payload="$scratch_dir/payload"
 rm -rf -- "$payload"
 mkdir -p "$payload"
 /usr/bin/ditto "$executable" "$payload/$PROGRAM"
+"$repository_root/scripts/verify-process-symbols.sh" "$payload/$PROGRAM"
 
 {
     echo "built $PROGRAM: $architectures, iOS $MIN_IOS minimum, $(

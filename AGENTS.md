@@ -13,7 +13,9 @@ build here.
   (scripts, makefile, packaging, workflows) with the Cargo variants from
   [grok](https://github.com/owngoal-dev/grok). When a script changes in a
   live repo, port the change here in the same commit, and the other way
-  round. Do not let the three repos and the template drift.
+  round. Do not let the three repos and the template drift. Native apps and
+  `kk` (SwiftPM CLI) use Pascal-case `Makefile` / `Configuration/`; do not
+  force this template's lowercase rule onto them.
 - **`CLAUDE.md` is a symlink to `AGENTS.md`**, here and in `template/`.
   Never replace it with a file.
 - **Review for sensitive information before anything is uploaded or
