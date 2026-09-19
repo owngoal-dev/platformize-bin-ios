@@ -9,9 +9,10 @@ executable="$1"
 [[ -f "$executable" ]] || { echo "error: no such file: $executable" >&2; exit 66; }
 
 symbols="$(nm -m "$executable")"
-forbidden="$(grep -E 'external _+(fork|vfork|exec[lv][epP]*|fexecve)([ $]|$)' <<<"$symbols" || true)"
+# Locally defined EPERM stubs deliberately remove these imports.
+forbidden="$(grep -E '\(undefined\).*external _+(fork|vfork|exec[lv][epP]*|fexecve)([ $]|$)' <<<"$symbols" || true)"
 [[ -z "$forbidden" ]] || {
-    echo "error: $executable carries fork/exec symbols:" >&2
+    echo "error: $executable imports fork/exec symbols:" >&2
     printf '%s\n' "$forbidden" >&2
     echo "posix_spawn is the one way to start a child; record an exception in AGENTS.md if a subcommand must keep one of these." >&2
     exit 65
@@ -21,6 +22,8 @@ if grep -qE '\(undefined\).*external _(setuid|seteuid|setreuid|setgid|setegid|se
     exit 65
 fi
 
+# Capture first so an inspection failure cannot pass through a process substitution.
+dependencies="$(otool -L "$executable")"
 while read -r dependency; do
     case "$dependency" in
     *libvroot*)
@@ -30,6 +33,6 @@ while read -r dependency; do
         exit 65
         ;;
     esac
-done < <(otool -L "$executable" | tail -n +2 | awk '{print $1}')
+done < <(tail -n +2 <<<"$dependencies" | awk '{print $1}')
 
 echo "==> no fork/exec, set*id or libvroot in $executable" >&2
