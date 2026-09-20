@@ -237,6 +237,11 @@ grep -rn 'fastfetch' makefile scripts packaging configuration .github docs manif
 `template/.github/workflows/` contains Release, Follow upstream, and Pages.
 Rewrite every `fastfetch` hit (job names and build tooling), and update the
 `owngoal-dev/fastfetch` repository and Pages URLs to the destination owner/repo.
+Release is shaped **test ‖ compile → release**: `test` (`make check`, plus any host tests the
+port has) and `compile` (`make source`, `make debs`, rendered release notes, artifact upload)
+run side by side; `release` has `needs: [test, compile]`, runs on tags only, downloads the
+artifact, checks `SHA256SUMS` and publishes from an Ubuntu runner with no checkout. A failure
+in either parallel job skips `release` and fails the run. Keep that shape when adapting it.
 Pages deploys `docs/` with GitHub Actions. Keep its `workflow_run.workflows`
 entry equal to the release workflow name; this refreshes release notes even
 when the Release workflow publishes with `GITHUB_TOKEN`. Release events

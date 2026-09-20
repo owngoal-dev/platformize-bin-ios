@@ -5,6 +5,10 @@
 # that is neither a draft nor a prerelease and whose tag carries no
 # alpha/beta/rc/preview/dev/nightly marker, then picks the asset whose name ends
 # in the architecture it wants and verifies it against SHA256SUMS.
+#
+# Shape: test ‖ compile → release. test and compile share nothing, so they run
+# side by side; release needs both, so a failure in either fails the run
+# without publishing. Add a port's own host tests to `test`, never to `compile`.
 
 name: Release
 
@@ -15,14 +19,29 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deb:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out fastfetch
+        uses: actions/checkout@v4
+
+      - name: Set version from tag
+        if: github.ref_type == 'tag'
+        run: make set-version VERSION="${GITHUB_REF_NAME}"
+
+      - name: Validate scripts, config, and patch set
+        run: make check
+
+  compile:
     runs-on: macos-26
     timeout-minutes: 60
 
@@ -49,9 +68,6 @@ jobs:
         if: github.ref_type == 'tag'
         run: make set-version VERSION="${GITHUB_REF_NAME}"
 
-      - name: Validate scripts, config, and patch set
-        run: make check
-
       - name: Prepare patched source
         run: make source
 
@@ -73,6 +89,10 @@ jobs:
             dpkg-deb -I ./*iphoneos-arm64.deb | sed 's/^/    /'
           } >>"$GITHUB_STEP_SUMMARY"
 
+      # Rendered here, where the version is set, so release needs no checkout.
+      - name: Render release notes
+        run: ./scripts/release-notes.sh "${GITHUB_REF_NAME}" >build/Packages/release-notes.md
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -80,18 +100,36 @@ jobs:
           path: |
             build/Packages/*.deb
             build/Packages/SHA256SUMS
+            build/Packages/release-notes.md
           if-no-files-found: error
 
+  release:
+    if: github.ref_type == 'tag'
+    needs: [test, compile]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: fastfetch-debs
+          path: dist
+
       - name: Create GitHub Release
-        if: github.ref_type == 'tag'
+        working-directory: dist
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          ./scripts/release-notes.sh "${GITHUB_REF_NAME}" >/tmp/release-notes.md
+          sha256sum -c SHA256SUMS
           gh release create "${GITHUB_REF_NAME}" \
             --title "fastfetch ${GITHUB_REF_NAME}" \
-            --notes-file /tmp/release-notes.md \
-            build/Packages/*.deb build/Packages/SHA256SUMS \
-          || { gh release edit "${GITHUB_REF_NAME}" --notes-file /tmp/release-notes.md &&
+            --notes-file release-notes.md \
+            ./*.deb SHA256SUMS \
+          || { gh release edit "${GITHUB_REF_NAME}" --notes-file release-notes.md &&
                gh release upload "${GITHUB_REF_NAME}" \
-                 build/Packages/*.deb build/Packages/SHA256SUMS --clobber; }
+                 ./*.deb SHA256SUMS --clobber; }
