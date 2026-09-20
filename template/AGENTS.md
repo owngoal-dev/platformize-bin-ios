@@ -33,8 +33,8 @@ same code.
   common build on `libvroot`, `_fork` / `_vfork` / `exec*` / `set*id`. Rootless
   does not load the RootHide runtime. `ls`/`stat`/`readlink` on a vroot-linked
   process are not the kernel's answers.
-- **`CLAUDE.md` is a symlink to `AGENTS.md`**, never a file of its own. One
-  set of notes, two names; `make check` enforces it.
+- **Name no specific package manager.** README, these notes, release notes
+  and script messages say "your preferred package manager".
 - **Review for sensitive information before anything is uploaded or
   published.** This is a reading job, not a regex. Before a push, a tag or
   a release, have an agent (a subagent is fine) read the diff, the staged
@@ -74,8 +74,7 @@ build/                       everything generated; not source
 
 ## Build & verify
 
-- `make check` — script syntax, config sanity, patch set, packaging inputs,
-  `CLAUDE.md` link
+- `make check` — script syntax, config sanity, patch set, packaging inputs
 - `make source` — fetch + patch; fails loudly if a patch no longer applies
 - `make rebase-patches REF=<sha>` — when `make source` or `Follow upstream`
   fails on a patch: fuzz-applies `patches/` onto `<sha>` in `build/rebase` and

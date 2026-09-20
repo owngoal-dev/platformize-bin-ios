@@ -16,8 +16,9 @@ build here.
   round. Do not let the three repos and the template drift. Native apps and
   `kk` (SwiftPM CLI) use Pascal-case `Makefile` / `Configuration/`; do not
   force this template's lowercase rule onto them.
-- **`CLAUDE.md` is a symlink to `AGENTS.md`**, here and in `template/`.
-  Never replace it with a file.
+- **Name no specific package manager**, here and in `template/`: say "your
+  preferred package manager". Field names such as `SileoDepiction` stay.
+- **No `CLAUDE.md`**, here or in `template/`. It is deprecated.
 - **Review for sensitive information before anything is uploaded or
   published.** A reading job, not a regex: before every push, have an
   agent (a subagent is fine) read the diff for credentials, private keys,
@@ -105,5 +106,4 @@ template/patches/example-*   reference patches worth copying
 
 ```sh
 bash -n template/scripts/*.sh
-test "$(readlink CLAUDE.md)" = AGENTS.md && test "$(readlink template/CLAUDE.md)" = AGENTS.md
 ```

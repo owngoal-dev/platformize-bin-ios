@@ -43,8 +43,10 @@ Turn an upstream CLI into `wiki.qaq.<program>_<ver>_iphoneos-arm64{,e}.deb`, the
 - **owngoal-packages contract**: non-draft, non-prerelease tag `vX.Y.Z`; assets ending in
   `iphoneos-arm64.deb` / `iphoneos-arm64e.deb`; `SHA256SUMS` of bare names. The APT build
   *fails* if a manifest entry has no release, so create the release before editing the manifest.
-- **`CLAUDE.md` is a symlink to `AGENTS.md`** (`ln -s AGENTS.md CLAUDE.md`), never a file.
-  `make check` enforces it.
+- **Name no specific package manager.** README, `AGENTS.md`, the depiction, release notes and
+  script messages say "your preferred package manager" — no named client, no client-specific
+  "Add to …" link. Field names such as `SileoDepiction` are identifiers and stay.
+- **No `CLAUDE.md`.** It is deprecated; `AGENTS.md` is the only notes file.
 - **Packaging-only C/Rust repos use `makefile`, lowercase**, and lowercase
   directories (`configuration/`, `packaging/`, `scripts/`, `patches/`, `docs/`).
   Only `AGENTS.md`, `README.md`, `LICENSE` and the DEBIAN control directory keep
